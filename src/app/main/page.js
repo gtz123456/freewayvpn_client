@@ -13,6 +13,13 @@ export default function Home() {
 
   const server = 'http://146.235.210.34:8000';
 
+  const node = {
+    server: "mock address",
+    description: "Oracle-San Jose",
+    uuid: uuid,
+    pubkey: pubkey,
+  }
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -94,7 +101,10 @@ export default function Home() {
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
+      <div className="text-center mb-4">
+        <p> Current status: {node.description} {connected ? "🟢":"🔴"} </p>
+      </div>
       <button
         className={`w-32 h-32 rounded-full text-white font-semibold transition-all duration-300 ${
           connected ? 'bg-red-500' : 'bg-blue-500'

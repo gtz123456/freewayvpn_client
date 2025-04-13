@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('test@freewayvpn.top');
+  const [password, setPassword] = useState('test');
   const [isLogin, setIsLogin] = useState(true); // Controls whether it's login or register mode
 
   const router = useRouter();
@@ -68,6 +68,10 @@ export default function Home() {
 
     router.push('/'); // Redirect to login page after registration
   }
+
+  useEffect(() => {
+    handleLogin();
+  }, []);
 
   return (
     <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
