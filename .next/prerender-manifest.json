@@ -30,30 +30,6 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/main": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/main",
-      "dataRoute": "/main.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
     "/": {
       "experimentalBypassFor": [
         {
@@ -77,13 +53,37 @@
         "x-next-revalidated-tags",
         "x-next-revalidate-tag-token"
       ]
+    },
+    "/main": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/main",
+      "dataRoute": "/main.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
     }
   },
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "267ae76df04b05f039d9fd8a77e9dba9",
-    "previewModeSigningKey": "9323f7e3d2d20a444008422024eaf8430584785545a1e540819c7058e511496b",
-    "previewModeEncryptionKey": "8f76328ce9e7b5066cd99e4968ddb9a5895d83023d52dada40c8910045fbf1b3"
+    "previewModeId": "904622a0728d4cda18747054456d846f",
+    "previewModeSigningKey": "dde6f1095601c06b46391a5b249addfc38a431d15909270db51e571e8794abfe",
+    "previewModeEncryptionKey": "57865f0b789440744762f94ebcf0f3230e35f60bc0d43fed50721250fa5c3a72"
   }
 }
