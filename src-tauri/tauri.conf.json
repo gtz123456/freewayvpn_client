@@ -25,7 +25,8 @@
     "active": true,
     "targets": "all",
     "resources": [
-      "bin/*"
+      "resources/*",
+      "resources/xray.json"
     ],
     "icon": [
       "icons/32x32.png",

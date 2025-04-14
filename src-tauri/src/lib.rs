@@ -4,6 +4,7 @@ use std::{fs, io::Write};
 use serde_json::Value;
 
 use sysproxy::Sysproxy;
+use tauri::{path::BaseDirectory, Manager};
 
 // Windows-only import for creation_flags
 #[cfg(target_os = "windows")]
@@ -31,11 +32,14 @@ fn cleanup() {
 }
 
 #[tauri::command]
-fn launch_xray(uuid: String, pubkey: String, server: String) -> String {
-    let mut default_config = {
-        let file_content = fs::read_to_string("./bin/xray.json").expect("LogRocket: error reading file");
-        serde_json::from_str::<Value>(&file_content).expect("LogRocket: error serializing to JSON")
-    };
+fn launch_xray(handle: tauri::AppHandle, uuid: String, pubkey: String, server: String) -> String {
+    let xray_json_path = handle.path().resolve("resources/xray.json", BaseDirectory::Resource).expect("LogRocket: error resolving xray.json path");
+
+    println!("xray_json_path: {:?}", xray_json_path);
+
+    let file = fs::File::open(&xray_json_path).expect("LogRocket: error opening file");
+
+    let mut default_config: serde_json::Value = serde_json::from_reader(file).expect("LogRocket: error reading file");
 
     if let Some(vnext) = default_config["outbounds"][0]["settings"]["vnext"][0].as_object_mut() {
         vnext.insert("address".to_string(), Value::String(server));
@@ -48,7 +52,10 @@ fn launch_xray(uuid: String, pubkey: String, server: String) -> String {
         reality_settings.insert("publicKey".to_string(), Value::String(pubkey.to_string()));
     }
 
-    let mut file = fs::File::create("./bin/config.json").expect("LogRocket: error creating file");
+    let config_path = handle.path().resolve("resources/config.json", BaseDirectory::Resource).expect("LogRocket: error resolving config.json path");
+
+    let mut file = fs::File::create(&config_path).expect("LogRocket: error creating file");
+
     file.write_all(
         serde_json::to_string_pretty(&default_config)
             .expect("LogRocket: error serializing to JSON")
@@ -57,15 +64,15 @@ fn launch_xray(uuid: String, pubkey: String, server: String) -> String {
     .expect("LogRocket: error writing to file");
 
     let xray_path = if cfg!(target_os = "windows") {
-        "./bin/xray.exe"
+        "./resources/xray.exe"
     } else if cfg!(target_os = "linux") {
-        "./bin/xray-linux"
+        "./resources/xray-linux"
     } else if cfg!(target_os = "macos") {
-        "./bin/xray-macos"
+        "./resources/xray-macos"
     } else if cfg!(target_os = "android") {
-        "./bin/xray-android"
+        "./resources/xray-android"
     } else {
-        "./bin/xray-ios"
+        "./resources/xray-ios"
     };
 
     let xray = {
