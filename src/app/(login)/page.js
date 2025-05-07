@@ -23,7 +23,7 @@ export default function Home() {
 
   function handleLogin() {
     // Send a POST request to the server, and get the jwt token in the response body
-    let loginURL = `${server}:8000/login`;
+    let loginURL = `${server}:8001/login`;
     fetch(loginURL, {
       method: 'POST',
       headers: {
@@ -52,7 +52,7 @@ export default function Home() {
   }
 
   function handleRegister() {
-    let registerURL = `${server}:8000/signup`;
+    let registerURL = `${server}:8001/signup`;
     fetch(registerURL, {
       method: 'POST',
       headers: {

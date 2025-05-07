@@ -56,6 +56,8 @@ fn launch_xray(handle: tauri::AppHandle, uuid: String, pubkey: String, server: S
 
     let mut file = fs::File::create(&config_path).expect("LogRocket: error creating file");
 
+    println!("config_path: {:?}", config_path);
+
     file.write_all(
         serde_json::to_string_pretty(&default_config)
             .expect("LogRocket: error serializing to JSON")
@@ -64,15 +66,15 @@ fn launch_xray(handle: tauri::AppHandle, uuid: String, pubkey: String, server: S
     .expect("LogRocket: error writing to file");
 
     let xray_path = if cfg!(target_os = "windows") {
-        "./resources/xray.exe"
+        handle.path().resolve("resources/xray.exe", BaseDirectory::Resource).expect("LogRocket: error resolving xray.exe path")
     } else if cfg!(target_os = "linux") {
-        "./resources/xray-linux"
+        handle.path().resolve("resources/xray-linux", BaseDirectory::Resource).expect("LogRocket: error resolving xray-linux path")
     } else if cfg!(target_os = "macos") {
-        "./resources/xray-macos"
+        handle.path().resolve("resources/xray-macos", BaseDirectory::Resource).expect("LogRocket: error resolving xray-macos path")
     } else if cfg!(target_os = "android") {
-        "./resources/xray-android"
+        handle.path().resolve("resources/xray-android", BaseDirectory::Resource).expect("LogRocket: error resolving xray-android path")
     } else {
-        "./resources/xray-ios"
+        handle.path().resolve("resources/xray-ios", BaseDirectory::Resource).expect("LogRocket: error resolving xray-ios path")
     };
 
     let xray = {
@@ -103,6 +105,8 @@ fn launch_xray(handle: tauri::AppHandle, uuid: String, pubkey: String, server: S
 fn close_xray(pid: String) {
     let pid = pid.parse::<u32>().expect("LogRocket: error parsing PID");
     println!("Killing xray process with PID: {}", pid);
+
+    // TODO: kill xray process that listens port 1080/1081
 
     #[cfg(target_family = "unix")]
     {
