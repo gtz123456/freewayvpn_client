@@ -1,4 +1,4 @@
-// File: D:\VPN\FreewayVPN_Client\src\app\main\page.js
+// File: D:\VPN\FreewayVPN_Client\src\app\main\page.jsx
 import * as entry from '../../../../src/app/main/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
