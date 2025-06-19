@@ -2,6 +2,7 @@
   "log": {
     "loglevel": "warning"
   },
+  
   "inbounds": [
     {
       "listen": "127.0.0.1",
@@ -17,7 +18,30 @@
       "protocol": "http"
     }
   ],
+
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "domain": ["geosite:category-ads-all"],
+        "outboundTag": "block"
+      },
+      {
+        "type": "field",
+        "domain": ["geosite:cn"],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "domain": ["geosite:geolocation-!cn"],
+        "outboundTag": "proxy"
+      }
+    ]
+  },
+
   "outbounds": [
+
     {
       "protocol": "vless",
       "settings": {
