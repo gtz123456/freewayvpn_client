@@ -37,7 +37,7 @@ export default function Home() {
   const mockUser = {
     email: "example@domain.com",
     plan: "Free Plan",
-    avatar: "https://i.pravatar.cc/100"
+    avatar: ""
   };
 
   // State for all settings values
@@ -221,7 +221,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen gap-4 relative bg-white/20">
+    <div className="flex flex-col items-center h-screen gap-4 relative bg-white/20 mt-8">
       <UserInfoCard user={mockUser} settings={settings} setSettings={setSettings} />
       <NodeSelector
         servers={servers}
