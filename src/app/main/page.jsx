@@ -8,6 +8,8 @@ import { useRef } from 'react';
 import AutoDismissMessageQueue from '@/components/AutoDismissMessageQueue';
 import ToggleSwitch from "@/components/ToggleSwitch";
 import Tooltip from "@/components/Tooltip";
+import NodeSelector from '@/components/NodeSelector';
+import UserInfoCard from '@/components/UserInfoCard';
 
 let pid;
 
@@ -31,6 +33,21 @@ export default function Home() {
 
   const [ipv6checked, setIpv6Checked] = useState(false);
   const [ipv6disabled, setIpv6Disabled] = useState(true);
+
+  const mockUser = {
+    email: "example@domain.com",
+    plan: "Free Plan",
+    avatar: "https://i.pravatar.cc/100"
+  };
+
+  // State for all settings values
+  const [settings, setSettings] = useState({
+    adGuard: true,
+    loadBalancing: false,
+    filterNetflix: false,
+    filterChatGPT: true,
+  });
+
 
   useEffect(() => {
     if (ipv6Enabled && servers && servers[selectedServerIndex] && servers[selectedServerIndex].ipv6) {
@@ -94,10 +111,10 @@ export default function Home() {
           console.error(`Heartbeat failed (${heartbeatFailsRef.current}/${MAX_HEARTBEAT_FAILS}):`, error);
 
           // If the failure count reaches the maximum limit, disconnect
-          if (heartbeatFailsRef.current >= MAX_HEARTBEAT_FAILS) {
+          if (heartbeatFailsRef.current == MAX_HEARTBEAT_FAILS) {
             messageRef.current?.addMessage('Connection lost. Auto-disconnecting.', 'error');
-            invoke('close_xray', { pid: pid });
-            setConnected(false);
+            handleClick();
+            handleClick();
             clearInterval(heartbeatIntervalRef.current);
             heartbeatIntervalRef.current = null;
             console.log("Heartbeat stopped due to consecutive failures.");
@@ -137,21 +154,34 @@ export default function Home() {
     return await response.json();
   }
 
-  async function sendHeartbeat() { // TODO: disconnect if heartbeat can't be sent
+  async function sendHeartbeat() {
     let serviceID = servers[selectedServerIndex].serviceid;
     if (!server) {
       return Promise.reject(new Error('No server selected'));
     }
 
     const token = localStorage.getItem('token');
-    const response = await fetch(server + '/heartbeat?serviceid=' + serviceID, {
-      method: 'POST',
-      headers: { 'Authorization': token },
-    });
-    if (!response.ok) {
-      throw new Error('Failed to send heartbeat');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+    try {
+      const response = await fetch(server + '/heartbeat?serviceid=' + serviceID, {
+        method: 'POST',
+        headers: { 'Authorization': token },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        throw new Error('Failed to send heartbeat');
+      }
+      return await response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Heartbeat request timed out');
+      }
+      throw error;
     }
-    return await response.json();
   }
 
   const handleClick = async () => {
@@ -191,20 +221,14 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-100 gap-4 relative">
-      <select
-        className="p-2 border rounded bg-white shadow"
-        value={selectedServerIndex}
-        onChange={(e) => setSelectedServerIndex(Number(e.target.value))}
-        disabled={connected}
-      >
-        {servers.map((s, index) => (
-          <option key={index} value={index}>
-            {s.description ? s.description : s.ip } {s.ping !== null && s.ping !== undefined ? `- ${s.ping} ms` : ''}
-          </option>
-        ))}
-      </select>
-
+    <div className="flex flex-col items-center justify-center h-screen gap-4 relative bg-white/20">
+      <UserInfoCard user={mockUser} settings={settings} setSettings={setSettings} />
+      <NodeSelector
+        servers={servers}
+        selectedServerIndex={selectedServerIndex}
+        setSelectedServerIndex={setSelectedServerIndex}
+        connected={connected}
+      />
       <div className="flex items-center gap-4">
         <p className="text-lg">IPv6:</p>
         <ToggleSwitch
@@ -217,16 +241,17 @@ export default function Home() {
       </div>
 
       <button
-        className={`w-32 h-32 rounded-full text-white font-semibold transition-all duration-300 ${
-          connected ? 'bg-red-500' : 'bg-blue-500'
-        }`}
+        className={`w-36 h-16 rounded-3xl text-white font-semibold transition-all duration-300 
+          ${connected ? 'bg-red-400 hover:bg-red-500' : 'bg-blue-400 hover:bg-blue-500'}
+          hover:scale-103 shadow-lg flex items-center justify-center`
+        }
         onClick={handleClick}
       >
         {connected ? 'Disconnect' : 'Connect'}
       </button>
 
       <div className="fixed bottom-0 left-0 w-full flex justify-center z-50">
-        <div className="bottom-bar flex justify-between w-full max-w-md p-1 shadow-md bg-blue-100">
+        <div className="bottom-bar flex justify-between w-full max-w-md p-1 shadow-md bg-blue-50">
           <div className="flex items-center gap-1">
             IPv6 {ipv6Enabled ? "🟢" : "🔴"}
             <Tooltip content="IPv6 may significantly improve the speed if your ISP's IPv4 network is congested. For 4G/5G connections, IPv6 is usually enabled by default.">
@@ -248,7 +273,7 @@ export default function Home() {
                 </svg>
             </Tooltip>
           </div>
-          <div>Balance: 10GB/10GB Free Plan</div>
+          <div>Balance: ∞GB/∞GB</div>
         </div>
       </div>
 

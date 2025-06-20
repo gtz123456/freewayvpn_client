@@ -33,11 +33,12 @@ export default function Home() {
           // handleSuccess('Version check successful.');
         } else {
           versionSupported = false; // Set to false if the version is not supported
-          handleError('Version is not supported. Please update the app.');
+          messageRef.current?.addMessage('Version not supported. Please update the app.', 'error');
+          console.error('Version not supported');
         }
       })
       .catch((err) => {
-        handleError('Error checking version.');
+        messageRef.current?.addMessage('Error checking version. Please try again later.', 'error');
         versionSupported = false;
       });
   }
@@ -108,12 +109,11 @@ export default function Home() {
 
   useEffect(() => {
     handleCheckVersion();
-    //handleLogin();
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50">
-      <div className="w-full max-w-[350px] mx-auto p-6 border border-gray-300 rounded-lg bg-white shadow-md">
+    <div className="min-h-screen flex flex-col justify-center items-center">
+      <div className="w-full max-w-[350px] mx-auto p-6 border border-white/70 rounded-lg bg-white/40 shadow-xl">
         <form onSubmit={handleSubmit} className="max-w-[275px] mx-auto">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700">Email:</label>
@@ -122,7 +122,7 @@ export default function Home() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-w-[275px]"
+              className="mt-1 block w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-w-[275px]"
             />
           </div>
           <div className="mb-4">
@@ -132,12 +132,12 @@ export default function Home() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-w-[275px]"
+              className="mt-1 block w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-w-[275px]"
             />
           </div>
           <button
             type="submit"
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 max-w-[275px]"
+            className="w-full py-2 px-4 bg-blue-400 text-white rounded-md hover:bg-blue-500 transition-colors disabled:opacity-50 max-w-[275px]"
             disabled={versionSupported === false}
           >
             {isLogin ? 'Login' : 'Register'}
