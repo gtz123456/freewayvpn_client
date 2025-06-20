@@ -52,38 +52,6 @@ pub fn run() {
         });
 }
 
-#[cfg(target_family = "windows")]
-mod windows_kill {
-    use netstat::{get_sockets_info, ProtocolFlags};
-    use netstat::AddressFamilyFlags;
-    use std::process::Command;
-
-    pub fn kill_ports() {
-        let sockets = get_sockets_info(
-            AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6,
-            ProtocolFlags::TCP,
-        ).expect("error getting sockets info");
-
-        for socket in sockets {
-            let local_port = match &socket.protocol_socket_info {
-                netstat::ProtocolSocketInfo::Tcp(tcp_info) => tcp_info.local_port,
-                netstat::ProtocolSocketInfo::Udp(udp_info) => udp_info.local_port,
-            };
-
-            if local_port == 1080 || local_port == 1081 {
-                if let Some(pid) = socket.associated_pids.get(0) {
-                    Command::new("taskkill")
-                        .arg("/F")
-                        .arg("/PID")
-                        .arg(pid.to_string())
-                        .spawn()
-                        .expect("Failed to kill process");
-                }
-            }
-        }
-    }
-}
-
 fn cleanup() {
     let sysproxy = Sysproxy {
         enable: false,
@@ -96,8 +64,42 @@ fn cleanup() {
 
     // kill process that listens port 1080/1081 in case xray is not closed properly
     #[cfg(target_family = "windows")]
-    windows_kill::kill_ports();
-
+    {
+      use netstat::{get_sockets_info, ProtocolFlags};
+      use std::process::Command;
+      use netstat::AddressFamilyFlags;
+      let sockets = get_sockets_info(
+        AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6,
+        ProtocolFlags::TCP,
+      ).expect("error getting sockets info");
+      // println!("Found {} sockets", sockets.len());
+      for socket in sockets {
+        let local_port = match &socket.protocol_socket_info {
+          netstat::ProtocolSocketInfo::Tcp(tcp_info) => tcp_info.local_port,
+          netstat::ProtocolSocketInfo::Udp(udp_info) => udp_info.local_port,
+        };
+        // println!("Found socket: local_port={}, protocol={:?}, pids={:?}", local_port, socket.protocol_socket_info, socket.associated_pids);
+        if local_port == 1080 || local_port == 1081 {
+          let pids: Vec<u32> = if let Some(pid) = socket.associated_pids.get(0) {
+            vec![*pid]
+          } else {
+            vec![]
+          };
+          for pid in pids {
+            // println!("Killing process with PID {} on port {}", pid, local_port);
+            #[cfg(target_family = "windows")]
+            {
+              Command::new("taskkill")
+                .arg("/F")
+                .arg("/PID")
+                .arg(pid.to_string())
+                .spawn()
+                .expect("Failed to kill process");
+            }
+          }
+        }
+      }
+    }
     
     #[cfg(target_family = "unix")]
     {

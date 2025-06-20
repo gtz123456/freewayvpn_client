@@ -42,7 +42,7 @@ const NodeSelector = ({
 
 
   return (
-    <div className="relative w-[90%] max-w-xl p-2 border-white/90 rounded-lg bg-white/60 shadow flex items-center justify-between">
+    <div className="relative w-[90%] max-w-xl p-3 mt-2 border-white/90 rounded-lg bg-white/60 shadow flex items-center justify-between">
       <div className="flex items-center gap-3 w-full" onClick={() => setDropdownOpen((prev) => !prev)}>
         <div className="w-13 h-9 flex items-center justify-center rounded-lg overflow-hidden">
           <img

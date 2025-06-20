@@ -55,11 +55,21 @@ const UserInfoCard = ({ user, settings, setSettings }) => {
     <div className="w-[90%] max-w-xl mx-auto flex items-center gap-3 p-2 pl-3 rounded-xl bg-white/60 shadow-md">
       {/* Avatar */}
       <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-300">
-        <img
-          src={user.avatar}
-          alt="avatar"
-          className="w-full h-full object-cover"
-        />
+        <svg width="46" height="46" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+          <title>User Icon</title>
+          <defs>
+            <clipPath id="circleView">
+              <circle cx="50" cy="50" r="50"/>
+            </clipPath>
+          </defs>
+
+          <g clip-path="url(#circleView)">
+            <rect width="100" height="100" fill="#cccccc"/>
+
+            <circle cx="50" cy="42" r="23" fill="white"/>
+            <circle cx="50" cy="115" r="50" fill="white"/>
+          </g>
+        </svg>
       </div>
 
       {/* Info */}
