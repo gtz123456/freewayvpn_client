@@ -61,6 +61,50 @@ fn cleanup() {
     };
 
     sysproxy.set_system_proxy().expect("error disabling system proxy");
+    // kill process that listens port 1080/1081 in case xray is not closed properly
+    use netstat::{get_sockets_info, ProtocolFlags};
+    use std::process::Command;
+    use netstat::AddressFamilyFlags;
+    let sockets = get_sockets_info(
+      AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6,
+      ProtocolFlags::TCP,
+    ).expect("error getting sockets info");
+    // println!("Found {} sockets", sockets.len());
+    for socket in sockets {
+      let local_port = match &socket.protocol_socket_info {
+        netstat::ProtocolSocketInfo::Tcp(tcp_info) => tcp_info.local_port,
+        netstat::ProtocolSocketInfo::Udp(udp_info) => udp_info.local_port,
+      };
+      // println!("Found socket: local_port={}, protocol={:?}, pids={:?}", local_port, socket.protocol_socket_info, socket.associated_pids);
+      if local_port == 1080 || local_port == 1081 {
+        let pids: Vec<u32> = if let Some(pid) = socket.associated_pids.get(0) {
+          vec![*pid]
+        } else {
+          vec![]
+        };
+        for pid in pids {
+          // println!("Killing process with PID {} on port {}", pid, local_port);
+          #[cfg(target_family = "unix")]
+          {
+            Command::new("kill")
+              .arg("-9")
+              .arg(pid.to_string())
+              .spawn()
+              .expect("Failed to kill process");
+          }
+          #[cfg(target_family = "windows")]
+          {
+            Command::new("taskkill")
+              .arg("/F")
+              .arg("/PID")
+              .arg(pid.to_string())
+              .spawn()
+              .expect("Failed to kill process");
+          }
+        }
+      }
+    }
+
 }
 
 #[derive(Default)]
@@ -70,6 +114,7 @@ pub struct ChildProcessState {
 
 #[tauri::command]
 async fn launch_xray(handle: tauri::AppHandle, uuid: String, pubkey: String, server: String, port: String) -> String {
+    cleanup();
     let xray_json_path = handle.path().resolve("resources/xray.json", BaseDirectory::Resource).expect("error resolving xray.json path");
 
     println!("xray_json_path: {:?}", xray_json_path);
@@ -155,39 +200,29 @@ async fn launch_xray(handle: tauri::AppHandle, uuid: String, pubkey: String, ser
 }
 
 #[tauri::command]
-fn close_xray(pid: String) {
+fn close_xray(handle: tauri::AppHandle, pid: String) {
     let pid = pid.parse::<u32>().expect("error parsing PID");
     println!("Killing xray process with PID: {}", pid);
 
-    // TODO: kill xray process that listens port 1080/1081
-
     #[cfg(target_family = "unix")]
     {
-        std::process::Command::new("kill")
-            .arg("-9")
-            .arg(pid.to_string())
-            .spawn()
-            .expect("Failed to kill xray process");
+      handle.shell()
+        .command("kill")
+        .args(&["-9", &pid.to_string()])
+        .spawn()
+        .expect("Failed to kill xray process");
     }
 
     #[cfg(target_family = "windows")]
     {
-        std::process::Command::new("taskkill")
-            .arg("/F")
-            .arg("/PID")
-            .arg(pid.to_string())
-            .spawn()
-            .expect("Failed to kill xray process");
+      handle.shell()
+        .command("taskkill")
+        .args(&["/F", "/PID", &pid.to_string()])
+        .spawn()
+        .expect("Failed to kill xray process");
     }
 
-    let sysproxy = Sysproxy {
-        enable: false,
-        host: "127.0.0.1".into(),
-        port: 1080,
-        bypass: "localhost,127.0.0.1/8".into(),
-    };
-
-    sysproxy.set_system_proxy().expect("error disabling system proxy");
+    cleanup();
 }
 
 #[tauri::command]
