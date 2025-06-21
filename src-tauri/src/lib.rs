@@ -6,17 +6,22 @@ use std::{fs, io::Write};
 use serde_json::Value;
 
 use sysproxy::Sysproxy;
-use std::sync::Mutex;
+// use std::sync::Mutex;
 use tauri::{path::BaseDirectory, Manager, RunEvent};
 
 use tauri_plugin_shell::ShellExt;
-use tauri_plugin_shell::process::CommandEvent;
+
+use std::process::Command;
+use std::process::Stdio;
+use std::sync::mpsc;
+use std::os::windows::process::CommandExt;
+use std::io::{BufRead, BufReader};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     cleanup();
     tauri::Builder::default()
-        .manage(Mutex::new(ChildProcessState::default()))
+        // .manage(Mutex::new(ChildProcessState::default()))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![launch_xray, close_xray, check_ipv6, ping])
@@ -73,29 +78,29 @@ fn cleanup() {
         ProtocolFlags::TCP,
       ).expect("error getting sockets info");
       // println!("Found {} sockets", sockets.len());
+      use std::collections::HashSet;
+      let mut killed_pids = HashSet::new();
       for socket in sockets {
         let local_port = match &socket.protocol_socket_info {
           netstat::ProtocolSocketInfo::Tcp(tcp_info) => tcp_info.local_port,
           netstat::ProtocolSocketInfo::Udp(udp_info) => udp_info.local_port,
         };
-        // println!("Found socket: local_port={}, protocol={:?}, pids={:?}", local_port, socket.protocol_socket_info, socket.associated_pids);
         if local_port == 1080 || local_port == 1081 {
-          let pids: Vec<u32> = if let Some(pid) = socket.associated_pids.get(0) {
-            vec![*pid]
-          } else {
-            vec![]
-          };
-          for pid in pids {
-            // println!("Killing process with PID {} on port {}", pid, local_port);
-            #[cfg(target_family = "windows")]
-            {
-              Command::new("taskkill")
-                .arg("/F")
-                .arg("/PID")
-                .arg(pid.to_string())
-                .spawn()
-                .expect("Failed to kill process");
-            }
+          for pid in &socket.associated_pids {
+        if killed_pids.insert(*pid) {
+          println!("Killing process with PID {} on port {}", pid, local_port);
+          #[cfg(target_family = "windows")]
+          {
+            use std::os::windows::process::CommandExt;
+            Command::new("taskkill")
+          .arg("/F")
+          .arg("/PID")
+          .arg(pid.to_string())
+          .creation_flags(0x08000000) // CREATE_NO_WINDOW
+          .spawn()
+          .expect("Failed to kill process");
+          }
+        }
           }
         }
       }
@@ -127,11 +132,6 @@ fn cleanup() {
     }
     
   }
-}
-
-#[derive(Default)]
-pub struct ChildProcessState {
-  child: Mutex<String>
 }
 
 #[tauri::command]
@@ -170,42 +170,57 @@ async fn launch_xray(handle: tauri::AppHandle, uuid: String, pubkey: String, ser
     )
     .expect("error writing to file");
 
-    let xray_path = handle.shell().sidecar("xray").unwrap();
+    // start xray process
+    let xray_exe = handle
+      .path()
+      .resolve("xray", BaseDirectory::Resource)
+      .expect("error resolving xray executable path");
 
-    let resources_path = handle.path().resolve("resources", BaseDirectory::Resource).unwrap();
+    let resources_path = handle
+      .path()
+      .resolve("resources", BaseDirectory::Resource)
+      .expect("error resolving resources path");
     let resources_dir = resources_path.to_str().unwrap();
 
-    let (mut rx, child) = xray_path.env("XRAY_LOCATION_ASSET", resources_dir)
-        .env("XRAY_LOCATION_CONFIG", resources_dir)
-        .spawn()
-        .expect("Failed to spawn xray process");
+    let mut cmd = Command::new(xray_exe);
+    cmd.env("XRAY_LOCATION_ASSET", resources_dir)
+      .env("XRAY_LOCATION_CONFIG", resources_dir)
+      .stdout(Stdio::piped())
+      .stderr(Stdio::piped());
 
-    let state = handle.state::<Mutex<ChildProcessState>>();
-    let mut state = state.lock().unwrap();
+    #[cfg(target_family = "windows")]
+    {
+      cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
 
-    state.child = child.pid().to_string().into();
+    let mut child = cmd.spawn().expect("Failed to spawn xray process");
 
-    tauri::async_runtime::spawn(async move {
-        while let Some(event) = rx.recv().await {
-            match event {
-                CommandEvent::Stdout(line) => {
-                  let line_str = String::from_utf8_lossy(&line).to_string();
-                  println!("[xray stdout] {}", line_str);
-                }
-                CommandEvent::Stderr(line) => {
-                  let line_str = String::from_utf8_lossy(&line).to_string();
-                  eprintln!("[xray stderr] {}", line_str);
-                }
-                CommandEvent::Error(line) => {
-                    eprintln!("[xray error] {}", line);
-                }
-                CommandEvent::Terminated(code) => {
-                    println!("[xray exited] code: {:?}", code);
-                }
-                _ => {}
-            }
+    // Simulate CommandEvent handling using std::thread and mpsc
+    let (tx, _rx) = mpsc::channel();
+
+    if let Some(stdout) = child.stdout.take() {
+      let tx = tx.clone();
+      std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.split(b'\n') {
+          if let Ok(line) = line {
+            let _ = tx.send(("stdout", line));
+          }
         }
-    });
+      });
+    }
+
+    if let Some(stderr) = child.stderr.take() {
+      let tx = tx.clone();
+      std::thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.split(b'\n') {
+          if let Ok(line) = line {
+            let _ = tx.send(("stderr", line));
+          }
+        }
+      });
+    }
 
     let sysproxy = Sysproxy {
         enable: true,
@@ -216,20 +231,22 @@ async fn launch_xray(handle: tauri::AppHandle, uuid: String, pubkey: String, ser
 
     sysproxy.set_system_proxy().expect("error setting system proxy");
 
-    let pid = child.pid().to_string();
+    let pid = child.id().to_string();
 
     pid
 }
 
 #[tauri::command]
-fn close_xray(handle: tauri::AppHandle, pid: String) {
+fn close_xray(pid: String) {
+  /*
     let pid = pid.parse::<u32>().expect("error parsing PID");
     println!("Killing xray process with PID: {}", pid);
 
     #[cfg(target_family = "unix")]
     {
-      handle.shell()
-        .command("kill")
+        use std::process::Command;
+
+      Command::new("kill")
         .args(&["-9", &pid.to_string()])
         .spawn()
         .expect("Failed to kill xray process");
@@ -237,12 +254,11 @@ fn close_xray(handle: tauri::AppHandle, pid: String) {
 
     #[cfg(target_family = "windows")]
     {
-      handle.shell()
-        .command("taskkill")
+      Command::new("taskkill")
         .args(&["/F", "/PID", &pid.to_string()])
         .spawn()
         .expect("Failed to kill xray process");
-    }
+    }  */
 
     cleanup();
 }
