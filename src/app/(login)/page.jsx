@@ -1,5 +1,7 @@
 'use client'
 
+import { fetch } from '@tauri-apps/plugin-http';
+
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AutoDismissMessageQueue from '@/components/AutoDismissMessageQueue';
