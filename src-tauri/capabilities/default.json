@@ -8,6 +8,14 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "shell:default"
+    "shell:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://*.tauri.app" },
+        { "url": "http://146.235.210.34:8001/*" }
+      ],
+      "deny": [{ "url": "https://private.tauri.app" }]
+    }
   ]
 }

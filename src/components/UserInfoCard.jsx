@@ -63,7 +63,7 @@ const UserInfoCard = ({ user, settings, setSettings }) => {
             </clipPath>
           </defs>
 
-          <g clip-path="url(#circleView)">
+          <g clipPath="url(#circleView)">
             <rect width="100" height="100" fill="#cccccc"/>
 
             <circle cx="50" cy="42" r="23" fill="white"/>

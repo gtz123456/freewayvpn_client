@@ -1,5 +1,7 @@
 'use client'
-// pages/index.js
+
+import { fetch } from '@tauri-apps/plugin-http';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { invoke } from '@tauri-apps/api/core';
