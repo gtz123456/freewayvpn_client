@@ -50,6 +50,10 @@ jobs:
       - name: install frontend dependencies
         run: pnpm install
 
+      - name: chmod all files (non-Windows)
+        if: matrix.platform != 'windows-latest'
+        run: chmod -R 777 .
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
