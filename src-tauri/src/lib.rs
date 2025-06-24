@@ -19,11 +19,18 @@ use std::sync::mpsc;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     cleanup();
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_http::init())
         // .manage(Mutex::new(ChildProcessState::default()))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        .on_window_event(|window, event| {
+          if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            window.hide().unwrap();
+            api.prevent_close();
+          }
+        })
         .invoke_handler(tauri::generate_handler![
             launch_xray,
             close_xray,
@@ -31,8 +38,12 @@ pub fn run() {
             ping
         ])
         .build(tauri::generate_context!())
-        .expect("error while building tauri application")
-        .run(move |app_handle: &tauri::AppHandle, event: RunEvent| {
+        .expect("error while building tauri application");
+        
+    build_tray_menu(&app)
+        .expect("error building tray menu");
+
+    app.run(move |_app_handle: &tauri::AppHandle, event: RunEvent| {
             match &event {
                 RunEvent::ExitRequested { api, code, .. } => {
                     // Keep the event loop running even if all windows are closed
@@ -41,21 +52,6 @@ pub fn run() {
                     if code.is_none() {
                         api.prevent_exit();
                     }
-                }
-                RunEvent::WindowEvent {
-                    event: tauri::WindowEvent::CloseRequested { api, .. },
-                    label,
-                    ..
-                } => {
-                    println!("closing window...");
-                    // run the window destroy manually just for fun :)
-                    // usually you'd show a dialog here to ask for confirmation or whatever
-                    api.prevent_close();
-                    app_handle
-                        .get_webview_window(label)
-                        .unwrap()
-                        .destroy()
-                        .unwrap();
                 }
                 _ => (),
             }
@@ -270,49 +266,53 @@ async fn launch_xray(
     let main_pid = std::process::id().to_string();
 
     let cleanup_bin_path = handle
-      .path()
-      .resolve("cleanup", BaseDirectory::Resource)
-      .expect("error resolving cleanup binary path");
+        .path()
+        .resolve("cleanup", BaseDirectory::Resource)
+        .expect("error resolving cleanup binary path");
 
     // run a command to shut down xray and then run cleanup_bin in case exit accidentally
     #[cfg(target_family = "unix")]
     {
-      use tauri_plugin_shell::ShellExt;
-      handle.shell().command("/bin/bash")
-        .arg("-c")
-        .arg(format!(
-          "while kill -0 {} 2>/dev/null; do sleep 0.5; done; kill {}; '{}'",
-          child_pid, main_pid, cleanup_bin_path.display()
-        ))
-        .spawn()
-        .expect("Failed to spawn shutdown command");
+        use tauri_plugin_shell::ShellExt;
+        handle
+            .shell()
+            .command("/bin/bash")
+            .arg("-c")
+            .arg(format!(
+                "while kill -0 {} 2>/dev/null; do sleep 0.5; done; kill {}; '{}'",
+                child_pid,
+                main_pid,
+                cleanup_bin_path.display()
+            ))
+            .spawn()
+            .expect("Failed to spawn shutdown command");
     } // TODO: not tested yet
 
     #[cfg(target_family = "windows")]
     {
-      use std::os::windows::process::CommandExt;
+        use std::os::windows::process::CommandExt;
 
-      let mut cmd = Command::new("powershell.exe");
+        let mut cmd = Command::new("powershell.exe");
 
-      cmd.arg("-Command")
-      .arg(format!(
-        r#"
+        cmd.arg("-Command")
+            .arg(format!(
+                r#"
           while ((Get-Process -Id {} -ErrorAction SilentlyContinue) -ne $null) {{
             Start-Sleep -Milliseconds 500
           }}
           Stop-Process -Id {} -Force
           Start-Process -FilePath "{}.exe"
         "#,
-        child_pid,
-        main_pid,
-        cleanup_bin_path.display()
-      ))
-      .stdout(Stdio::piped())
-      .stderr(Stdio::piped());
+                child_pid,
+                main_pid,
+                cleanup_bin_path.display()
+            ))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
-      cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
-      cmd.spawn().expect("Failed to spawn shutdown command");
+        cmd.spawn().expect("Failed to spawn shutdown command");
     }
 
     child_pid
@@ -405,4 +405,47 @@ async fn ping(handle: tauri::AppHandle, address: String) -> String {
     let stderr = String::from_utf8_lossy(&output.stderr);
     eprintln!("ping failed: {}", stderr);
     "error".to_string()
+}
+
+fn build_tray_menu(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::{
+      menu::{Menu, MenuItem},
+      tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
+    };
+
+    let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&quit_i])?;
+
+    TrayIconBuilder::new()
+      .icon(app.default_window_icon().unwrap().clone())
+      .menu(&menu)
+      .on_menu_event(|app, event| match event.id.as_ref() {
+        "quit" => {
+          println!("quit menu item was clicked");
+          app.exit(0);
+        }
+        _ => {
+          println!("menu item {:?} not handled", event.id);
+        }
+      })
+      .on_tray_icon_event(|tray, event| match event {
+        TrayIconEvent::Click {
+          button: MouseButton::Left,
+          button_state: MouseButtonState::Up,
+          ..
+        } => {
+          println!("left click pressed and released");
+          // in this example, let's show and focus the main window when the tray is clicked
+          let app = tray.app_handle();
+          if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.set_focus();
+          }
+        }
+        _ => {
+          println!("unhandled event {event:?}");
+        }
+      })
+      .build(app)?;
+    Ok(())
 }

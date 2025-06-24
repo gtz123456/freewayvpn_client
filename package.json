@@ -16,6 +16,7 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-http": "~2",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "~2",
     "@tauri-apps/plugin-shell": "~2",
     "next": "^15.2.3",
     "postcss": "^8.5.5",
