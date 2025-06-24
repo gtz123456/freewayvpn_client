@@ -201,10 +201,12 @@ async fn launch_xray(
     .expect("error writing to file");
 
     // start xray process
-    let xray_exe = handle
+    let xray_bin = handle
         .path()
         .resolve("xray", BaseDirectory::Resource)
         .expect("error resolving xray executable path");
+
+    println!("xray_bin: {:?}", xray_bin);
 
     let resources_path = handle
         .path()
@@ -212,7 +214,7 @@ async fn launch_xray(
         .expect("error resolving resources path");
     let resources_dir = resources_path.to_str().unwrap();
 
-    let mut cmd = Command::new(xray_exe);
+    let mut cmd = Command::new(xray_bin);
     cmd.env("XRAY_LOCATION_ASSET", resources_dir)
         .env("XRAY_LOCATION_CONFIG", resources_dir)
         .stdout(Stdio::piped())
@@ -264,9 +266,56 @@ async fn launch_xray(
         .set_system_proxy()
         .expect("error setting system proxy");
 
-    let pid = child.id().to_string();
+    let child_pid = child.id().to_string();
+    let main_pid = std::process::id().to_string();
 
-    pid
+    let cleanup_bin_path = handle
+      .path()
+      .resolve("cleanup", BaseDirectory::Resource)
+      .expect("error resolving cleanup binary path");
+
+    // run a command to shut down xray and then run cleanup_bin in case exit accidentally
+    #[cfg(target_family = "unix")]
+    {
+      use tauri_plugin_shell::ShellExt;
+      handle.shell().command("/bin/bash")
+        .arg("-c")
+        .arg(format!(
+          "while kill -0 {} 2>/dev/null; do sleep 0.5; done; kill {}; '{}'",
+          child_pid, main_pid, cleanup_bin_path.display()
+        ))
+        .spawn()
+        .expect("Failed to spawn shutdown command");
+    } // TODO: not tested yet
+
+    #[cfg(target_family = "windows")]
+    {
+      use std::os::windows::process::CommandExt;
+
+      let mut cmd = Command::new("powershell.exe");
+
+      cmd.arg("-Command")
+      .arg(format!(
+        r#"
+          while ((Get-Process -Id {} -ErrorAction SilentlyContinue) -ne $null) {{
+            Start-Sleep -Milliseconds 500
+          }}
+          Stop-Process -Id {} -Force
+          Start-Process -FilePath "{}.exe"
+        "#,
+        child_pid,
+        main_pid,
+        cleanup_bin_path.display()
+      ))
+      .stdout(Stdio::piped())
+      .stderr(Stdio::piped());
+
+      cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+      cmd.spawn().expect("Failed to spawn shutdown command");
+    }
+
+    child_pid
 }
 
 #[tauri::command]

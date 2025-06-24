@@ -15,8 +15,8 @@ import UserInfoCard from '@/components/UserInfoCard';
 
 let pid;
 
-const HEARTBEAT_INTERVAL_MS = 5000; // 5 seconds
-const MAX_HEARTBEAT_FAILS = 3;
+const HEARTBEAT_INTERVAL_MS = 2000; // 2 seconds
+const MAX_HEARTBEAT_FAILS = 10;
 
 export default function Home() {
   const [connected, setConnected] = useState(false);
@@ -37,7 +37,7 @@ export default function Home() {
   const [ipv6disabled, setIpv6Disabled] = useState(true);
 
   const mockUser = {
-    email: "example@domain.com",
+    email: "admin@freewayvpn.top",
     plan: "Free Plan",
     avatar: ""
   };

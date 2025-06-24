@@ -30,3 +30,7 @@ tauri-plugin-http = "2"
 [target.'cfg(windows)'.dependencies]
 netstat = "0.6.0"
 
+
+#[[bin]]
+#name = "cleanup"
+#path = "binaries/cleanup.rs"
