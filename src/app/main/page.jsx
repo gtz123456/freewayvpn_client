@@ -10,12 +10,15 @@ import { useRef } from 'react';
 import AutoDismissMessageQueue from '@/components/AutoDismissMessageQueue';
 import ToggleSwitch from "@/components/ToggleSwitch";
 import Tooltip from "@/components/Tooltip";
-import NodeSelector from '@/components/NodeSelector';
+
 import UserInfoCard from '@/components/UserInfoCard';
+import NodeSelector from '@/components/NodeSelector';
+import NetworkMonitor from '@/components/NetworkMonitor';
+
 
 let pid;
 
-const HEARTBEAT_INTERVAL_MS = 2000; // 2 seconds
+const HEARTBEAT_INTERVAL_MS = 3000; // 3 seconds
 const MAX_HEARTBEAT_FAILS = 10;
 
 export default function Home() {
@@ -115,11 +118,34 @@ export default function Home() {
           // If the failure count reaches the maximum limit, disconnect
           if (heartbeatFailsRef.current == MAX_HEARTBEAT_FAILS) {
             messageRef.current?.addMessage('Connection lost. Auto-disconnecting.', 'error');
-            handleClick();
-            handleClick();
             clearInterval(heartbeatIntervalRef.current);
             heartbeatIntervalRef.current = null;
             console.log("Heartbeat stopped due to consecutive failures.");
+
+            // try to reconnect
+            setConnected(!connected);
+            pid && await invoke('close_xray', { pid: pid });
+            pid = null;
+
+            try {
+              const data = await connectToNode();
+              
+              await invoke('launch_xray', {
+                uuid: data.uuid,
+                pubkey: data.pubkey,
+                server: ipv6checked && selectedServer.ipv6 ? selectedServer.ipv6 : selectedServer.ip,
+                port: data.port,
+              }).then((xraypid) => {
+                pid = xraypid;
+              });
+              messageRef.current?.addMessage(`Reconnected to ${selectedServer.description || selectedServer.ip}`, 'success');
+              setConnected(!connected);
+            } catch (error) {
+              // console.error('Error connecting to node:', error);
+              messageRef.current?.addMessage(`Error reconnecting to ${selectedServer.description || selectedServer.ip}: ${error.message}. Please try to connect manually or switch to another node`, 'error');
+              return;
+            }
+
           }
         }
       }, HEARTBEAT_INTERVAL_MS);
@@ -164,7 +190,7 @@ export default function Home() {
 
     const token = localStorage.getItem('token');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
     try {
       const response = await fetch(server + '/heartbeat?serviceid=' + serviceID, {
@@ -204,12 +230,13 @@ export default function Home() {
           uuid: data.uuid,
           pubkey: data.pubkey,
           server: ipv6checked && selectedServer.ipv6 ? selectedServer.ipv6 : selectedServer.ip,
-          port: data.port, // "443"
+          port: data.port,
         }).then((xraypid) => {
           pid = xraypid;
         });
 
         messageRef.current?.addMessage(`Connected to ${selectedServer.description || selectedServer.ip}`, 'success');
+        setConnected(!connected);
       } catch (error) {
         // console.error('Error connecting to node:', error);
         messageRef.current?.addMessage(`Error connecting to ${selectedServer.description || selectedServer.ip}: ${error.message}`, 'error');
@@ -217,9 +244,8 @@ export default function Home() {
       }
     } else {
       invoke('close_xray', { pid: pid });
+      setConnected(!connected);
     }
-
-    setConnected(!connected);
   };
   
 
@@ -232,6 +258,7 @@ export default function Home() {
         setSelectedServerIndex={setSelectedServerIndex}
         connected={connected}
       />
+      <NetworkMonitor isConnected={connected} />
       <div className="flex items-center gap-4">
         <p className="text-lg">IPv6:</p>
         <ToggleSwitch

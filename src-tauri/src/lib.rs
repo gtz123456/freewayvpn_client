@@ -35,7 +35,8 @@ pub fn run() {
             launch_xray,
             close_xray,
             check_ipv6,
-            ping
+            ping,
+            get_xray_stats
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -295,20 +296,20 @@ async fn launch_xray(
         let mut cmd = Command::new("powershell.exe");
 
         cmd.arg("-Command")
-            .arg(format!(
-                r#"
-          while ((Get-Process -Id {} -ErrorAction SilentlyContinue) -ne $null) {{
-            Start-Sleep -Milliseconds 500
-          }}
-          Stop-Process -Id {} -Force
-          Start-Process -FilePath "{}.exe"
-        "#,
-                child_pid,
-                main_pid,
-                cleanup_bin_path.display()
-            ))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+          .arg(format!(
+            r#"
+            while ((Get-Process -Id {} -ErrorAction SilentlyContinue) -ne $null) {{
+              Start-Sleep -Milliseconds 500
+            }}
+            Stop-Process -Id {} -Force
+            Start-Process -FilePath "{}.exe"
+            "#,
+            main_pid,
+            child_pid,
+            cleanup_bin_path.display()
+          ))
+          .stdout(Stdio::piped())
+          .stderr(Stdio::piped());
 
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
@@ -448,4 +449,49 @@ fn build_tray_menu(app: &tauri::App) -> tauri::Result<()> {
       })
       .build(app)?;
     Ok(())
+}
+
+#[tauri::command]
+async fn get_xray_stats(handle: tauri::AppHandle) -> String {
+  use std::os::windows::process::CommandExt;
+
+  let xray_bin = handle
+  .path()
+  .resolve("xray", BaseDirectory::Resource)
+  .expect("error resolving xray executable path");
+
+  #[cfg(target_os = "windows")]
+  {
+    let output = Command::new(xray_bin)
+      .arg("api")
+      .arg("statsquery")
+      .creation_flags(0x08000000) // CREATE_NO_WINDOW
+      .output()
+      .expect("Failed to execute xray stats command");
+
+    if output.status.success() {
+      let stdout = String::from_utf8_lossy(&output.stdout);
+      stdout.to_string()
+    } else {
+      let _stderr = String::from_utf8_lossy(&output.stderr);
+      return "{}".to_string();
+    }
+  }
+
+  #[cfg(not(target_os = "windows"))]
+  {
+    let output = Command::new(xray_bin)
+      .arg("api")
+      .arg("statsquery")
+      .output()
+      .expect("Failed to execute xray stats command");
+
+    if output.status.success() {
+      let stdout = String::from_utf8_lossy(&output.stdout);
+      stdout.to_string()
+    } else {
+      let _stderr = String::from_utf8_lossy(&output.stderr);
+      return "{}".to_string();
+    }
+  }
 }

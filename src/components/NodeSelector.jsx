@@ -52,7 +52,10 @@ const NodeSelector = ({
           />
         </div>
         <div className="flex flex-col flex-grow">
-          <span className="text-xs text-gray-500">Select node:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Select node:</span>
+            <div className="text-sm text-gray-500 border px-1 rounded-md ml-1">{selectedServer?.tag ?? "Free"}</div>
+          </div>
           <div className="text-md">
             {selectedServer?.description || selectedServer?.ip}
           </div>
@@ -62,7 +65,20 @@ const NodeSelector = ({
             {selectedServer.tag}
           </span>
         )}
-        <span className="text-lg">{selectedServer?.ping ?? "- "}ms</span>
+        {/* Ping color for selected server */}
+        <span className={`text-md ${
+          (() => {
+            const pingValue = typeof selectedServer?.ping === "string" ? parseInt(selectedServer?.ping, 10) : selectedServer?.ping;
+            if (!isNaN(pingValue)) {
+              if (pingValue < 100) return "text-green-600";
+              if (pingValue < 250) return "text-yellow-500";
+              return "text-red-500";
+            }
+            return "text-gray-700";
+          })()
+        }`}>
+          {selectedServer?.ping ?? "- "}ms
+        </span>
       </div>
 
       <button
@@ -76,26 +92,35 @@ const NodeSelector = ({
         <div className="absolute left-0 top-full mt-2 w-full max-w-xl bg-white rounded-xl shadow-lg z-10 max-h-96 overflow-y-auto">
           {servers.map((s, index) => {
             const code = getCountryCode(s.description);
+            // Determine ping color
+            let pingColor = "text-gray-700";
+            const pingValue = typeof s.ping === "string" ? parseInt(s.ping, 10) : s.ping;
+            if (!isNaN(pingValue)) {
+              if (pingValue < 100) pingColor = "text-green-600";
+              else if (pingValue < 250) pingColor = "text-yellow-500";
+              else pingColor = "text-red-500";
+            }
+
             return (
               <div
-                key={index}
-                onClick={() => handleSelect(index)}
-                className={`p-3 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
-                  index === selectedServerIndex ? "bg-gray-50" : ""
-                }`}
+              key={index}
+              onClick={() => handleSelect(index)}
+              className={`p-3 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
+                index === selectedServerIndex ? "bg-gray-50" : ""
+              }`}
               >
-                <div className="flex items-center gap-3">
-                  <img
-                    src={`https://flagcdn.com/w40/${code}.png`}
-                    alt={code}
-                    className="w-7 h-5 object-cover rounded"
-                  />
-                  <div className="flex flex-row items-center gap-2">
-                    <div className="">{s.description || s.ip}</div>
-                    <div className="text-sm text-gray-500">{s.tag ?? "Free"}</div>
-                  </div>
+              <div className="flex items-center gap-3">
+                <img
+                src={`https://flagcdn.com/w40/${code}.png`}
+                alt={code}
+                className="w-7 h-5 object-cover rounded"
+                />
+                <div className="flex flex-row items-center gap-2">
+                <div className="">{s.description || s.ip}</div>
+                <div className="text-sm text-gray-500 border px-1 rounded-md">{s.tag ?? "Free"}</div>
                 </div>
-                <div className="text-sm">{s.ping ?? "- "}ms</div>
+              </div>
+              <div className={`text-sm ${pingColor}`}>{s.ping ?? "- "}ms</div>
               </div>
             );
           })}
