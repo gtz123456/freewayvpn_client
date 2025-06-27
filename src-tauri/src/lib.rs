@@ -19,17 +19,27 @@ use std::sync::mpsc;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     cleanup();
-    let app = tauri::Builder::default()
-        .plugin(tauri_plugin_process::init())
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    {
+      builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        let _ = app.get_webview_window("main")
+          .expect("no main window")
+          .set_focus();
+      }));
+    }
+
+    let app = builder.plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_http::init())
         // .manage(Mutex::new(ChildProcessState::default()))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .on_window_event(|window, event| {
-          if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-            window.hide().unwrap();
-            api.prevent_close();
-          }
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                window.hide().unwrap();
+                api.prevent_close();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             launch_xray,
@@ -40,23 +50,22 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
-        
-    build_tray_menu(&app)
-        .expect("error building tray menu");
+
+    build_tray_menu(&app).expect("error building tray menu");
 
     app.run(move |_app_handle: &tauri::AppHandle, event: RunEvent| {
-            match &event {
-                RunEvent::ExitRequested { api, code, .. } => {
-                    // Keep the event loop running even if all windows are closed
-                    // This allow us to catch tray icon events when there is no window
-                    // if we manually requested an exit (code is Some(_)) we will let it go through
-                    if code.is_none() {
-                        api.prevent_exit();
-                    }
+        match &event {
+            RunEvent::ExitRequested { api, code, .. } => {
+                // Keep the event loop running even if all windows are closed
+                // This allow us to catch tray icon events when there is no window
+                // if we manually requested an exit (code is Some(_)) we will let it go through
+                if code.is_none() {
+                    api.prevent_exit();
                 }
-                _ => (),
             }
-        });
+            _ => (),
+        }
+    });
 }
 
 fn cleanup() {
@@ -296,20 +305,20 @@ async fn launch_xray(
         let mut cmd = Command::new("powershell.exe");
 
         cmd.arg("-Command")
-          .arg(format!(
-            r#"
+            .arg(format!(
+                r#"
             while ((Get-Process -Id {} -ErrorAction SilentlyContinue) -ne $null) {{
               Start-Sleep -Milliseconds 500
             }}
             Stop-Process -Id {} -Force
             Start-Process -FilePath "{}.exe"
             "#,
-            main_pid,
-            child_pid,
-            cleanup_bin_path.display()
-          ))
-          .stdout(Stdio::piped())
-          .stderr(Stdio::piped());
+                main_pid,
+                child_pid,
+                cleanup_bin_path.display()
+            ))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
@@ -410,88 +419,88 @@ async fn ping(handle: tauri::AppHandle, address: String) -> String {
 
 fn build_tray_menu(app: &tauri::App) -> tauri::Result<()> {
     use tauri::{
-      menu::{Menu, MenuItem},
-      tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
+        menu::{Menu, MenuItem},
+        tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     };
 
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&quit_i])?;
 
     TrayIconBuilder::new()
-      .icon(app.default_window_icon().unwrap().clone())
-      .menu(&menu)
-      .on_menu_event(|app, event| match event.id.as_ref() {
-        "quit" => {
-          println!("quit menu item was clicked");
-          app.exit(0);
-        }
-        _ => {
-          println!("menu item {:?} not handled", event.id);
-        }
-      })
-      .on_tray_icon_event(|tray, event| match event {
-        TrayIconEvent::Click {
-          button: MouseButton::Left,
-          button_state: MouseButtonState::Up,
-          ..
-        } => {
-          println!("left click pressed and released");
-          // in this example, let's show and focus the main window when the tray is clicked
-          let app = tray.app_handle();
-          if let Some(window) = app.get_webview_window("main") {
-            let _ = window.show();
-            let _ = window.set_focus();
-          }
-        }
-        _ => {
-          println!("unhandled event {event:?}");
-        }
-      })
-      .build(app)?;
+        .icon(app.default_window_icon().unwrap().clone())
+        .menu(&menu)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "quit" => {
+                println!("quit menu item was clicked");
+                app.exit(0);
+            }
+            _ => {
+                println!("menu item {:?} not handled", event.id);
+            }
+        })
+        .on_tray_icon_event(|tray, event| match event {
+            TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } => {
+                println!("left click pressed and released");
+                // in this example, let's show and focus the main window when the tray is clicked
+                let app = tray.app_handle();
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+            _ => {
+                println!("unhandled event {event:?}");
+            }
+        })
+        .build(app)?;
     Ok(())
 }
 
 #[tauri::command]
 async fn get_xray_stats(handle: tauri::AppHandle) -> String {
-  use std::os::windows::process::CommandExt;
+    use std::os::windows::process::CommandExt;
 
-  let xray_bin = handle
-  .path()
-  .resolve("xray", BaseDirectory::Resource)
-  .expect("error resolving xray executable path");
+    let xray_bin = handle
+        .path()
+        .resolve("xray", BaseDirectory::Resource)
+        .expect("error resolving xray executable path");
 
-  #[cfg(target_os = "windows")]
-  {
-    let output = Command::new(xray_bin)
-      .arg("api")
-      .arg("statsquery")
-      .creation_flags(0x08000000) // CREATE_NO_WINDOW
-      .output()
-      .expect("Failed to execute xray stats command");
+    #[cfg(target_os = "windows")]
+    {
+        let output = Command::new(xray_bin)
+            .arg("api")
+            .arg("statsquery")
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .output()
+            .expect("Failed to execute xray stats command");
 
-    if output.status.success() {
-      let stdout = String::from_utf8_lossy(&output.stdout);
-      stdout.to_string()
-    } else {
-      let _stderr = String::from_utf8_lossy(&output.stderr);
-      return "{}".to_string();
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            stdout.to_string()
+        } else {
+            let _stderr = String::from_utf8_lossy(&output.stderr);
+            return "{}".to_string();
+        }
     }
-  }
 
-  #[cfg(not(target_os = "windows"))]
-  {
-    let output = Command::new(xray_bin)
-      .arg("api")
-      .arg("statsquery")
-      .output()
-      .expect("Failed to execute xray stats command");
+    #[cfg(not(target_os = "windows"))]
+    {
+        let output = Command::new(xray_bin)
+            .arg("api")
+            .arg("statsquery")
+            .output()
+            .expect("Failed to execute xray stats command");
 
-    if output.status.success() {
-      let stdout = String::from_utf8_lossy(&output.stdout);
-      stdout.to_string()
-    } else {
-      let _stderr = String::from_utf8_lossy(&output.stderr);
-      return "{}".to_string();
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            stdout.to_string()
+        } else {
+            let _stderr = String::from_utf8_lossy(&output.stderr);
+            return "{}".to_string();
+        }
     }
-  }
 }
