@@ -25,6 +25,8 @@
         }
       ]
     },
-    "process:default"
+    "process:default",
+    "http:default",
+    "http:default"
   ]
 }

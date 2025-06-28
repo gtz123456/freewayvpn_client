@@ -101,6 +101,10 @@ fn cleanup() {
             };
             if local_port == 1080 || local_port == 1081 {
                 for pid in &socket.associated_pids {
+                    if *pid == 0 {
+                        continue; // skip PID 0
+                    }
+
                     if killed_pids.insert(*pid) {
                         println!("Killing process with PID {} on port {}", pid, local_port);
                         #[cfg(target_family = "windows")]
@@ -135,6 +139,9 @@ fn cleanup() {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() > 1 {
                     if let Ok(pid) = parts[1].parse::<u32>() {
+                        if pid == 0 {
+                            continue; // skip PID 0
+                        }
                         println!("Killing process with PID {} on port 1080", pid);
                         std::process::Command::new("kill")
                             .arg("-9")
