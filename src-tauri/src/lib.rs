@@ -9,7 +9,7 @@ use sysproxy::Sysproxy;
 // use std::sync::Mutex;
 use tauri::{path::BaseDirectory, Manager, RunEvent};
 
-use tauri_plugin_shell::ShellExt;
+use surge_ping::{Client, Config, PingIdentifier, PingSequence};
 
 use std::io::{BufRead, BufReader};
 use std::process::Command;
@@ -369,59 +369,40 @@ fn check_ipv6() -> bool {
 }
 
 #[tauri::command] // return latency in ms as string
-async fn ping(handle: tauri::AppHandle, address: String) -> String {
-    let shell = handle.shell();
+async fn ping(address: String) -> String {
+    // convert address to IP address
+    let Ok(addr) = tokio::net::lookup_host(format!("{}:0", address)).await.and_then(|mut addrs| addrs.next().ok_or(std::io::Error::new(std::io::ErrorKind::NotFound, "No addresses found"))) else {
+        eprintln!("Failed to resolve host: {}", address);
+        return "error".to_string();
+    };
 
-    #[cfg(target_os = "windows")]
-    let args = vec!["-n", "4", &address];
-    #[cfg(not(target_os = "windows"))]
-    let args = vec!["-c", "4", &address];
+    // create Ping client
+    let client = Client::new(&Config::default()).unwrap();
+    let ident = PingIdentifier(1234); // random identifier
+    let mut pinger = client.pinger(addr.ip(), ident).await;
+    pinger.timeout(Duration::from_secs(2)); // set timeout
 
-    println!("Pinging {} with args {:?}", address, args);
+    let mut latencies: Vec<u128> = Vec::new();
+    let total_pings = 4;
 
-    let output = shell
-        .command("ping")
-        .args(&args)
-        .output()
-        .await
-        .expect("failed to execute process");
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    #[cfg(target_os = "windows")]
-    {
-        // Windows: look for "Average = XXms"
-        for line in stdout.lines() {
-            if line.contains("Average =") {
-                if let Some(avg_part) = line.split("Average =").nth(1) {
-                    let avg = avg_part.trim().replace("ms", "").replace(" ", "");
-                    return avg;
-                }
+    for i in 0..total_pings {
+        match pinger.ping(PingSequence(i as u16), &[0; 8]).await {
+            Ok((_reply, duration)) => {
+                latencies.push(duration.as_millis());
+            }
+            Err(e) => {
+                eprintln!("Ping #{} failed: {}", i + 1, e);
             }
         }
     }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        // Unix: look for "rtt min/avg/max/mdev = ..."
-        for line in stdout.lines() {
-            if line.contains("avg") && line.contains('/') {
-                let parts: Vec<&str> = line.split('=').collect();
-                if parts.len() == 2 {
-                    let values: Vec<&str> = parts[1].split('/').collect();
-                    if values.len() >= 2 {
-                        return values[1].trim().to_string();
-                    }
-                }
-            }
-        }
+    
+    if latencies.is_empty() {
+        "error".to_string()
+    } else {
+        let sum: u128 = latencies.iter().sum();
+        let avg = sum / latencies.len() as u128;
+        format!("{:}", avg) // return average latency as string
     }
-
-    // If we reach here, either parsing failed or ping failed
-    println!("Status: {:?}", output.status);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    eprintln!("ping failed: {}", stderr);
-    "error".to_string()
 }
 
 fn build_tray_menu(app: &tauri::App) -> tauri::Result<()> {

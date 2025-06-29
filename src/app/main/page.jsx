@@ -101,29 +101,21 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (connected) {
-      heartbeatFailsRef.current = 0;
-      heartbeatIntervalRef.current = setInterval(async () => {
+    let isActive = true;
+
+    const heartbeatLoop = async () => {
+      while (isActive && connected) {
         try {
           console.log("Sending heartbeat...");
           await sendHeartbeat();
-          // On successful heartbeat, reset the failure counter
           heartbeatFailsRef.current = 0;
           console.log("Heartbeat success.");
         } catch (error) {
-          // On failed heartbeat, increment the counter
           heartbeatFailsRef.current++;
           console.error(`Heartbeat failed (${heartbeatFailsRef.current}/${MAX_HEARTBEAT_FAILS}):`, error);
-
-          // If the failure count reaches the maximum limit, disconnect
-          if (heartbeatFailsRef.current == MAX_HEARTBEAT_FAILS) {
-            messageRef.current?.addMessage('Connection lost. Auto-disconnecting.', 'error');
-            clearInterval(heartbeatIntervalRef.current);
-            heartbeatIntervalRef.current = null;
-            console.log("Heartbeat stopped due to consecutive failures.");
-
+          if (heartbeatFailsRef.current === MAX_HEARTBEAT_FAILS) {
             // try to reconnect
-            setConnected(!connected);
+            setConnected(false);
             pid && await invoke('close_xray', { pid: pid });
             pid = null;
 
@@ -133,31 +125,31 @@ export default function Home() {
               await invoke('launch_xray', {
                 uuid: data.uuid,
                 pubkey: data.pubkey,
-                server: ipv6checked && selectedServer.ipv6 ? selectedServer.ipv6 : selectedServer.ip,
+                server: ipv6checked && servers[selectedServerIndex].ipv6 ? servers[selectedServerIndex].ipv6 : servers[selectedServerIndex].ip,
                 port: data.port,
               }).then((xraypid) => {
                 pid = xraypid;
               });
-              messageRef.current?.addMessage(`Reconnected to ${selectedServer.description || selectedServer.ip}`, 'success');
-              setConnected(!connected);
+              messageRef.current?.addMessage(`Reconnected to ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}`, 'success');
+              setConnected(true);
             } catch (error) {
-              // console.error('Error connecting to node:', error);
-              messageRef.current?.addMessage(`Error reconnecting to ${selectedServer.description || selectedServer.ip}: ${error.message}. Please try to connect manually or switch to another node`, 'error');
-              return;
+              messageRef.current?.addMessage(`Error reconnecting to ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}: ${error.message}. Please try to connect manually or switch to another node`, 'error');
             }
-
+            break;
           }
         }
-      }, HEARTBEAT_INTERVAL_MS);
+
+        await new Promise(res => setTimeout(res, HEARTBEAT_INTERVAL_MS));
+      }
+    };
+
+    if (connected) {
+      heartbeatFailsRef.current = 0;
+      heartbeatLoop();
     }
 
-    // Cleanup function: this runs when the component unmounts or `connected` changes to false
     return () => {
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-        heartbeatIntervalRef.current = null;
-        console.log("Heartbeat stopped.");
-      }
+      isActive = false;
     };
   }, [connected]);
 
