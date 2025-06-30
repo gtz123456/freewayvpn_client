@@ -39,11 +39,11 @@ export default function Home() {
   const [ipv6checked, setIpv6Checked] = useState(false);
   const [ipv6disabled, setIpv6Disabled] = useState(true);
 
-  const mockUser = {
-    email: "admin@freewayvpn.top",
-    plan: "Free Plan",
-    avatar: ""
-  };
+  const [user, setUser] = useState({
+    email: '',
+    plan: '',
+    uuid: '',
+  });
 
   // State for all settings values
   const [settings, setSettings] = useState({
@@ -70,6 +70,19 @@ export default function Home() {
       router.push('/login');
       return;
     }
+
+    getUser().then((data) => {
+      setUser(data);
+      console.log('User data:', data);
+      if (!data || !data.uuid) {
+        messageRef.current?.addMessage('User data is invalid. Please log in again.', 'error');
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
+    }).catch((error) => {
+      messageRef.current?.addMessage(`Error fetching user data: ${error.message}`, 'error');
+    });
 
     getServers().then(async (data) => {
       setServers(data.servers);
@@ -152,6 +165,18 @@ export default function Home() {
       isActive = false;
     };
   }, [connected]);
+
+  async function getUser() {
+    const token = localStorage.getItem('token');
+    const response = await fetch(server + '/user', {
+      method: 'GET',
+      headers: { 'Authorization': token },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch user data');
+    }
+    return await response.json();
+  }
 
   async function connectToNode() {
     const token = localStorage.getItem('token');
@@ -243,7 +268,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center h-screen gap-4 relative bg-white/20 mt-8">
-      <UserInfoCard user={mockUser} settings={settings} setSettings={setSettings} />
+      <UserInfoCard user={user} settings={settings} setSettings={setSettings} />
       <NodeSelector
         servers={servers}
         selectedServerIndex={selectedServerIndex}
@@ -295,7 +320,7 @@ export default function Home() {
                 </svg>
             </Tooltip>
           </div>
-          <div>Balance: ∞GB/∞GB</div>
+          <div>Balance: {user.traffic_used ? user.traffic_used : 0}GB/{user.traffic_limit ? user.traffic_limit : '∞'}GB</div>
         </div>
       </div>
 
