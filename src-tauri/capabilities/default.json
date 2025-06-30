@@ -12,10 +12,21 @@
     {
       "identifier": "http:default",
       "allow": [
-        { "url": "https://*.tauri.app" },
-        { "url": "http://146.235.210.34:8001/*" }
+        {
+          "url": "https://*.tauri.app"
+        },
+        {
+          "url": "http://146.235.210.34:8001/*"
+        }
       ],
-      "deny": [{ "url": "https://private.tauri.app" }]
-    }
+      "deny": [
+        {
+          "url": "https://private.tauri.app"
+        }
+      ]
+    },
+    "process:default",
+    "http:default",
+    "http:default"
   ]
 }

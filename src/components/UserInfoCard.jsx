@@ -74,8 +74,8 @@ const UserInfoCard = ({ user, settings, setSettings }) => {
 
       {/* Info */}
       <div className="flex flex-col">
-        <div className="text-sm text-gray-600">{user.email}</div>
-        <div className="text-xs text-gray-400">{user.plan}</div>
+        <div className="text-sm text-gray-600">{user.email ? user.email : '?@freewayvpn.top'}</div>
+        <div className="text-xs text-gray-400">{user.plan ? user.plan : 'Free plan'}</div>
       </div>
 
       {/* Settings button and dropdown menu container */}

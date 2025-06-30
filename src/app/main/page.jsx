@@ -10,13 +10,16 @@ import { useRef } from 'react';
 import AutoDismissMessageQueue from '@/components/AutoDismissMessageQueue';
 import ToggleSwitch from "@/components/ToggleSwitch";
 import Tooltip from "@/components/Tooltip";
-import NodeSelector from '@/components/NodeSelector';
+
 import UserInfoCard from '@/components/UserInfoCard';
+import NodeSelector from '@/components/NodeSelector';
+import NetworkMonitor from '@/components/NetworkMonitor';
+
 
 let pid;
 
-const HEARTBEAT_INTERVAL_MS = 5000; // 5 seconds
-const MAX_HEARTBEAT_FAILS = 3;
+const HEARTBEAT_INTERVAL_MS = 3000; // 3 seconds
+const MAX_HEARTBEAT_FAILS = 10;
 
 export default function Home() {
   const [connected, setConnected] = useState(false);
@@ -36,11 +39,11 @@ export default function Home() {
   const [ipv6checked, setIpv6Checked] = useState(false);
   const [ipv6disabled, setIpv6Disabled] = useState(true);
 
-  const mockUser = {
-    email: "example@domain.com",
-    plan: "Free Plan",
-    avatar: ""
-  };
+  const [user, setUser] = useState({
+    email: '',
+    plan: '',
+    uuid: '',
+  });
 
   // State for all settings values
   const [settings, setSettings] = useState({
@@ -67,6 +70,19 @@ export default function Home() {
       router.push('/login');
       return;
     }
+
+    getUser().then((data) => {
+      setUser(data);
+      console.log('User data:', data);
+      if (!data || !data.uuid) {
+        messageRef.current?.addMessage('User data is invalid. Please log in again.', 'error');
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
+    }).catch((error) => {
+      messageRef.current?.addMessage(`Error fetching user data: ${error.message}`, 'error');
+    });
 
     getServers().then(async (data) => {
       setServers(data.servers);
@@ -98,42 +114,69 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (connected) {
-      heartbeatFailsRef.current = 0;
-      heartbeatIntervalRef.current = setInterval(async () => {
+    let isActive = true;
+
+    const heartbeatLoop = async () => {
+      while (isActive && connected) {
         try {
           console.log("Sending heartbeat...");
           await sendHeartbeat();
-          // On successful heartbeat, reset the failure counter
           heartbeatFailsRef.current = 0;
           console.log("Heartbeat success.");
         } catch (error) {
-          // On failed heartbeat, increment the counter
           heartbeatFailsRef.current++;
           console.error(`Heartbeat failed (${heartbeatFailsRef.current}/${MAX_HEARTBEAT_FAILS}):`, error);
+          if (heartbeatFailsRef.current === MAX_HEARTBEAT_FAILS) {
+            // try to reconnect
+            setConnected(false);
+            pid && await invoke('close_xray', { pid: pid });
+            pid = null;
 
-          // If the failure count reaches the maximum limit, disconnect
-          if (heartbeatFailsRef.current == MAX_HEARTBEAT_FAILS) {
-            messageRef.current?.addMessage('Connection lost. Auto-disconnecting.', 'error');
-            handleClick();
-            handleClick();
-            clearInterval(heartbeatIntervalRef.current);
-            heartbeatIntervalRef.current = null;
-            console.log("Heartbeat stopped due to consecutive failures.");
+            try {
+              const data = await connectToNode();
+              
+              await invoke('launch_xray', {
+                uuid: data.uuid,
+                pubkey: data.pubkey,
+                server: ipv6checked && servers[selectedServerIndex].ipv6 ? servers[selectedServerIndex].ipv6 : servers[selectedServerIndex].ip,
+                port: data.port,
+              }).then((xraypid) => {
+                pid = xraypid;
+              });
+              messageRef.current?.addMessage(`Reconnected to ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}`, 'success');
+              setConnected(true);
+            } catch (error) {
+              messageRef.current?.addMessage(`Error reconnecting to ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}: ${error.message}. Please try to connect manually or switch to another node`, 'error');
+            }
+            break;
           }
         }
-      }, HEARTBEAT_INTERVAL_MS);
-    }
 
-    // Cleanup function: this runs when the component unmounts or `connected` changes to false
-    return () => {
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-        heartbeatIntervalRef.current = null;
-        console.log("Heartbeat stopped.");
+        await new Promise(res => setTimeout(res, HEARTBEAT_INTERVAL_MS));
       }
     };
+
+    if (connected) {
+      heartbeatFailsRef.current = 0;
+      heartbeatLoop();
+    }
+
+    return () => {
+      isActive = false;
+    };
   }, [connected]);
+
+  async function getUser() {
+    const token = localStorage.getItem('token');
+    const response = await fetch(server + '/user', {
+      method: 'GET',
+      headers: { 'Authorization': token },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch user data');
+    }
+    return await response.json();
+  }
 
   async function connectToNode() {
     const token = localStorage.getItem('token');
@@ -164,7 +207,7 @@ export default function Home() {
 
     const token = localStorage.getItem('token');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
     try {
       const response = await fetch(server + '/heartbeat?serviceid=' + serviceID, {
@@ -204,12 +247,13 @@ export default function Home() {
           uuid: data.uuid,
           pubkey: data.pubkey,
           server: ipv6checked && selectedServer.ipv6 ? selectedServer.ipv6 : selectedServer.ip,
-          port: data.port, // "443"
+          port: data.port,
         }).then((xraypid) => {
           pid = xraypid;
         });
 
         messageRef.current?.addMessage(`Connected to ${selectedServer.description || selectedServer.ip}`, 'success');
+        setConnected(!connected);
       } catch (error) {
         // console.error('Error connecting to node:', error);
         messageRef.current?.addMessage(`Error connecting to ${selectedServer.description || selectedServer.ip}: ${error.message}`, 'error');
@@ -217,20 +261,21 @@ export default function Home() {
       }
     } else {
       invoke('close_xray', { pid: pid });
+      setConnected(!connected);
     }
-
-    setConnected(!connected);
   };
+  
 
   return (
     <div className="flex flex-col items-center h-screen gap-4 relative bg-white/20 mt-8">
-      <UserInfoCard user={mockUser} settings={settings} setSettings={setSettings} />
+      <UserInfoCard user={user} settings={settings} setSettings={setSettings} />
       <NodeSelector
         servers={servers}
         selectedServerIndex={selectedServerIndex}
         setSelectedServerIndex={setSelectedServerIndex}
         connected={connected}
       />
+      <NetworkMonitor isConnected={connected} />
       <div className="flex items-center gap-4">
         <p className="text-lg">IPv6:</p>
         <ToggleSwitch
@@ -275,7 +320,7 @@ export default function Home() {
                 </svg>
             </Tooltip>
           </div>
-          <div>Balance: ∞GB/∞GB</div>
+          <div>Balance: {user.traffic_used ? user.traffic_used : 0}GB/{user.traffic_limit ? user.traffic_limit : '∞'}GB</div>
         </div>
       </div>
 

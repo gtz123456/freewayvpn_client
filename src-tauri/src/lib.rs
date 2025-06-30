@@ -9,7 +9,7 @@ use sysproxy::Sysproxy;
 // use std::sync::Mutex;
 use tauri::{path::BaseDirectory, Manager, RunEvent};
 
-use tauri_plugin_shell::ShellExt;
+use surge_ping::{Client, Config, PingIdentifier, PingSequence};
 
 use std::io::{BufRead, BufReader};
 use std::process::Command;
@@ -19,47 +19,53 @@ use std::sync::mpsc;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     cleanup();
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    {
+      builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        let _ = app.get_webview_window("main")
+          .expect("no main window")
+          .set_focus();
+      }));
+    }
+
+    let app = builder.plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_http::init())
         // .manage(Mutex::new(ChildProcessState::default()))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                window.hide().unwrap();
+                api.prevent_close();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             launch_xray,
             close_xray,
             check_ipv6,
-            ping
+            ping,
+            get_xray_stats
         ])
         .build(tauri::generate_context!())
-        .expect("error while building tauri application")
-        .run(move |app_handle: &tauri::AppHandle, event: RunEvent| {
-            match &event {
-                RunEvent::ExitRequested { api, code, .. } => {
-                    // Keep the event loop running even if all windows are closed
-                    // This allow us to catch tray icon events when there is no window
-                    // if we manually requested an exit (code is Some(_)) we will let it go through
-                    if code.is_none() {
-                        api.prevent_exit();
-                    }
+        .expect("error while building tauri application");
+
+    build_tray_menu(&app).expect("error building tray menu");
+
+    app.run(move |_app_handle: &tauri::AppHandle, event: RunEvent| {
+        match &event {
+            RunEvent::ExitRequested { api, code, .. } => {
+                // Keep the event loop running even if all windows are closed
+                // This allow us to catch tray icon events when there is no window
+                // if we manually requested an exit (code is Some(_)) we will let it go through
+                if code.is_none() {
+                    api.prevent_exit();
                 }
-                RunEvent::WindowEvent {
-                    event: tauri::WindowEvent::CloseRequested { api, .. },
-                    label,
-                    ..
-                } => {
-                    println!("closing window...");
-                    // run the window destroy manually just for fun :)
-                    // usually you'd show a dialog here to ask for confirmation or whatever
-                    api.prevent_close();
-                    app_handle
-                        .get_webview_window(label)
-                        .unwrap()
-                        .destroy()
-                        .unwrap();
-                }
-                _ => (),
             }
-        });
+            _ => (),
+        }
+    });
 }
 
 fn cleanup() {
@@ -95,6 +101,10 @@ fn cleanup() {
             };
             if local_port == 1080 || local_port == 1081 {
                 for pid in &socket.associated_pids {
+                    if *pid == 0 {
+                        continue; // skip PID 0
+                    }
+
                     if killed_pids.insert(*pid) {
                         println!("Killing process with PID {} on port {}", pid, local_port);
                         #[cfg(target_family = "windows")]
@@ -129,6 +139,9 @@ fn cleanup() {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() > 1 {
                     if let Ok(pid) = parts[1].parse::<u32>() {
+                        if pid == 0 {
+                            continue; // skip PID 0
+                        }
                         println!("Killing process with PID {} on port 1080", pid);
                         std::process::Command::new("kill")
                             .arg("-9")
@@ -201,10 +214,12 @@ async fn launch_xray(
     .expect("error writing to file");
 
     // start xray process
-    let xray_exe = handle
+    let xray_bin = handle
         .path()
         .resolve("xray", BaseDirectory::Resource)
         .expect("error resolving xray executable path");
+
+    println!("xray_bin: {:?}", xray_bin);
 
     let resources_path = handle
         .path()
@@ -212,7 +227,7 @@ async fn launch_xray(
         .expect("error resolving resources path");
     let resources_dir = resources_path.to_str().unwrap();
 
-    let mut cmd = Command::new(xray_exe);
+    let mut cmd = Command::new(xray_bin);
     cmd.env("XRAY_LOCATION_ASSET", resources_dir)
         .env("XRAY_LOCATION_CONFIG", resources_dir)
         .stdout(Stdio::piped())
@@ -264,9 +279,60 @@ async fn launch_xray(
         .set_system_proxy()
         .expect("error setting system proxy");
 
-    let pid = child.id().to_string();
+    let child_pid = child.id().to_string();
+    let main_pid = std::process::id().to_string();
 
-    pid
+    let cleanup_bin_path = handle
+        .path()
+        .resolve("cleanup", BaseDirectory::Resource)
+        .expect("error resolving cleanup binary path");
+
+    // run a command to shut down xray and then run cleanup_bin in case exit accidentally
+    #[cfg(target_family = "unix")]
+    {
+        use tauri_plugin_shell::ShellExt;
+        handle
+            .shell()
+            .command("/bin/bash")
+            .arg("-c")
+            .arg(format!(
+                "while kill -0 {} 2>/dev/null; do sleep 0.5; done; kill {}; '{}'",
+                child_pid,
+                main_pid,
+                cleanup_bin_path.display()
+            ))
+            .spawn()
+            .expect("Failed to spawn shutdown command");
+    } // TODO: not tested yet
+
+    #[cfg(target_family = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+
+        let mut cmd = Command::new("powershell.exe");
+
+        cmd.arg("-Command")
+            .arg(format!(
+                r#"
+            while ((Get-Process -Id {} -ErrorAction SilentlyContinue) -ne $null) {{
+              Start-Sleep -Milliseconds 500
+            }}
+            Stop-Process -Id {} -Force
+            Start-Process -FilePath "{}.exe"
+            "#,
+                main_pid,
+                child_pid,
+                cleanup_bin_path.display()
+            ))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+        cmd.spawn().expect("Failed to spawn shutdown command");
+    }
+
+    child_pid
 }
 
 #[tauri::command]
@@ -303,57 +369,126 @@ fn check_ipv6() -> bool {
 }
 
 #[tauri::command] // return latency in ms as string
-async fn ping(handle: tauri::AppHandle, address: String) -> String {
-    let shell = handle.shell();
+async fn ping(address: String) -> String {
+    // convert address to IP address
+    let Ok(addr) = tokio::net::lookup_host(format!("{}:0", address)).await.and_then(|mut addrs| addrs.next().ok_or(std::io::Error::new(std::io::ErrorKind::NotFound, "No addresses found"))) else {
+        eprintln!("Failed to resolve host: {}", address);
+        return "error".to_string();
+    };
 
-    #[cfg(target_os = "windows")]
-    let args = vec!["-n", "4", &address];
-    #[cfg(not(target_os = "windows"))]
-    let args = vec!["-c", "4", &address];
+    // create Ping client
+    let client = Client::new(&Config::default()).unwrap();
+    let ident = PingIdentifier(1234); // random identifier
+    let mut pinger = client.pinger(addr.ip(), ident).await;
+    pinger.timeout(Duration::from_secs(2)); // set timeout
 
-    println!("Pinging {} with args {:?}", address, args);
+    let mut latencies: Vec<u128> = Vec::new();
+    let total_pings = 4;
 
-    let output = shell
-        .command("ping")
-        .args(&args)
-        .output()
-        .await
-        .expect("failed to execute process");
+    for i in 0..total_pings {
+        match pinger.ping(PingSequence(i as u16), &[0; 8]).await {
+            Ok((_reply, duration)) => {
+                latencies.push(duration.as_millis());
+            }
+            Err(e) => {
+                eprintln!("Ping #{} failed: {}", i + 1, e);
+            }
+        }
+    }
+    
+    if latencies.is_empty() {
+        "error".to_string()
+    } else {
+        let sum: u128 = latencies.iter().sum();
+        let avg = sum / latencies.len() as u128;
+        format!("{:}", avg) // return average latency as string
+    }
+}
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
+fn build_tray_menu(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::{
+        menu::{Menu, MenuItem},
+        tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    };
+
+    let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&quit_i])?;
+
+    TrayIconBuilder::new()
+        .icon(app.default_window_icon().unwrap().clone())
+        .menu(&menu)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "quit" => {
+                println!("quit menu item was clicked");
+                app.exit(0);
+            }
+            _ => {
+                println!("menu item {:?} not handled", event.id);
+            }
+        })
+        .on_tray_icon_event(|tray, event| match event {
+            TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } => {
+                println!("left click pressed and released");
+                // in this example, let's show and focus the main window when the tray is clicked
+                let app = tray.app_handle();
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+            _ => {
+                println!("unhandled event {event:?}");
+            }
+        })
+        .build(app)?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_xray_stats(handle: tauri::AppHandle) -> String {
+    use std::os::windows::process::CommandExt;
+
+    let xray_bin = handle
+        .path()
+        .resolve("xray", BaseDirectory::Resource)
+        .expect("error resolving xray executable path");
 
     #[cfg(target_os = "windows")]
     {
-        // Windows: look for "Average = XXms"
-        for line in stdout.lines() {
-            if line.contains("Average =") {
-                if let Some(avg_part) = line.split("Average =").nth(1) {
-                    let avg = avg_part.trim().replace("ms", "").replace(" ", "");
-                    return avg;
-                }
-            }
+        let output = Command::new(xray_bin)
+            .arg("api")
+            .arg("statsquery")
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .output()
+            .expect("Failed to execute xray stats command");
+
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            stdout.to_string()
+        } else {
+            let _stderr = String::from_utf8_lossy(&output.stderr);
+            return "{}".to_string();
         }
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        // Unix: look for "rtt min/avg/max/mdev = ..."
-        for line in stdout.lines() {
-            if line.contains("avg") && line.contains('/') {
-                let parts: Vec<&str> = line.split('=').collect();
-                if parts.len() == 2 {
-                    let values: Vec<&str> = parts[1].split('/').collect();
-                    if values.len() >= 2 {
-                        return values[1].trim().to_string();
-                    }
-                }
-            }
+        let output = Command::new(xray_bin)
+            .arg("api")
+            .arg("statsquery")
+            .output()
+            .expect("Failed to execute xray stats command");
+
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            stdout.to_string()
+        } else {
+            let _stderr = String::from_utf8_lossy(&output.stderr);
+            return "{}".to_string();
         }
     }
-
-    // If we reach here, either parsing failed or ping failed
-    println!("Status: {:?}", output.status);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    eprintln!("ping failed: {}", stderr);
-    "error".to_string()
 }
