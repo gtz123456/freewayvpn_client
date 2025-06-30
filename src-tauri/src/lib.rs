@@ -450,8 +450,6 @@ fn build_tray_menu(app: &tauri::App) -> tauri::Result<()> {
 
 #[tauri::command]
 async fn get_xray_stats(handle: tauri::AppHandle) -> String {
-    use std::os::windows::process::CommandExt;
-
     let xray_bin = handle
         .path()
         .resolve("xray", BaseDirectory::Resource)
@@ -459,6 +457,7 @@ async fn get_xray_stats(handle: tauri::AppHandle) -> String {
 
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
         let output = Command::new(xray_bin)
             .arg("api")
             .arg("statsquery")
