@@ -185,7 +185,7 @@ export default function Home() {
       headers: { 'Authorization': token },
     });
     if (!response.ok) {
-      throw new Error('Failed to connect to node');
+      throw new Error('Failed to connect to node: ' + response.statusText);
     }
     return await response.json();
   }
@@ -300,7 +300,26 @@ export default function Home() {
       <div className="fixed bottom-0 left-0 w-full flex justify-center z-50">
         <div className="bottom-bar flex justify-between w-full max-w-md p-1 shadow-md bg-blue-50">
           <div className="flex items-center gap-1">
-            IPv6 {ipv6Enabled ? "🟢" : "🔴"}
+            <div className="flex items-center gap-1">
+              <span>IPv6</span>
+              {ipv6Enabled ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-4 h-4 fill-green-500"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-4 h-4 fill-red-500"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                </svg>
+              )}
+            </div>
             <Tooltip content="IPv6 may significantly improve the speed if your ISP's IPv4 network is congested. For 4G/5G connections, IPv6 is usually enabled by default.">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

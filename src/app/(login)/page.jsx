@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import AutoDismissMessageQueue from '@/components/AutoDismissMessageQueue';
 
 export default function Home() {
-  const [email, setEmail] = useState('test@freewayvpn.top');
-  const [password, setPassword] = useState('test');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true); // Controls whether it's login or register mode
 
   const messageRef = useRef();
