@@ -1,4 +1,6 @@
+import { Router } from "next/router";
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 // Helper component for the toggle switch
 const ToggleSwitch = ({ label, isEnabled, onToggle }) => (
@@ -24,10 +26,11 @@ const FilterCheckbox = ({ label, isChecked, onToggle }) => (
     </label>
 );
 
-
 const UserInfoCard = ({ user, settings, setSettings }) => {
   // State for settings dropdown visibility
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const router = useRouter();
 
   // Ref to detect clicks outside the menu
   const menuRef = useRef(null);
@@ -105,6 +108,12 @@ const UserInfoCard = ({ user, settings, setSettings }) => {
                 <h3 className="text-sm text-gray-500 mb-2">Filter:</h3>
                 <FilterCheckbox label="NetFlix" isChecked={settings.filterNetflix} onToggle={() => handleSettingChange('filterNetflix')} />
                 <FilterCheckbox label="ChatGPT" isChecked={settings.filterChatGPT} onToggle={() => handleSettingChange('filterChatGPT')} />
+                <button
+                  className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  onClick={() => { localStorage.removeItem('token'); router.push('/'); }}
+                >
+                  Log off
+                </button>
             </div>
           </div>
         )}

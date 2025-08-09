@@ -111,6 +111,13 @@ export default function Home() {
 
   useEffect(() => {
     handleCheckVersion();
+
+    let token = localStorage.getItem('token');
+    if (token) {
+      router.push('/main');
+    } else {
+      console.log('No token found, staying on login page');
+    }
   }, []);
 
   return (
