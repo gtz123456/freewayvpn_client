@@ -1,8 +1,12 @@
 'use client'
 
+import '@/app/i18n'
+import i18next from 'i18next';
+import { I18nContext } from '@/app/i18n';
+
 import { fetch } from '@tauri-apps/plugin-http';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { invoke } from '@tauri-apps/api/core';
 import { useRef } from 'react';
@@ -11,7 +15,7 @@ import AutoDismissMessageQueue from '@/components/AutoDismissMessageQueue';
 import ToggleSwitch from "@/components/ToggleSwitch";
 import Tooltip from "@/components/Tooltip";
 
-import UserInfoCard from '@/components/UserInfoCard';
+import UserInfoCard from '@/components/UserCard';
 import NodeSelector from '@/components/NodeSelector';
 import NetworkMonitor from '@/components/NetworkMonitor';
 
@@ -22,6 +26,8 @@ const HEARTBEAT_INTERVAL_MS = 3000; // 3 seconds
 const MAX_HEARTBEAT_FAILS = 10;
 
 export default function Home() {
+  const { lang } = useContext(I18nContext);
+
   const [connected, setConnected] = useState(false);
   const [servers, setServers] = useState([]);
   const [selectedServerIndex, setSelectedServerIndex] = useState(0);
@@ -75,13 +81,13 @@ export default function Home() {
       setUser(data);
       console.log('User data:', data);
       if (!data || !data.uuid) {
-        messageRef.current?.addMessage('User data is invalid. Please log in again.', 'error');
+        messageRef.current?.addMessage(i18next.t('User data invalid'), 'error');
         localStorage.removeItem('token');
         router.push('/login');
         return;
       }
     }).catch((error) => {
-      messageRef.current?.addMessage(`Error fetching user data: ${error.message}`, 'error');
+      messageRef.current?.addMessage(i18next.t(`Error fetching user data: ${error.message}`), 'error');
     });
 
     getServers().then(async (data) => {
@@ -143,10 +149,10 @@ export default function Home() {
               }).then((xraypid) => {
                 pid = xraypid;
               });
-              messageRef.current?.addMessage(`Reconnected to ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}`, 'success');
+              messageRef.current?.addMessage(`${i18next.t('Reconnected to')} ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}`, 'success');
               setConnected(true);
             } catch (error) {
-              messageRef.current?.addMessage(`Error reconnecting to ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}: ${error.message}. Please try to connect manually or switch to another node`, 'error');
+              messageRef.current?.addMessage(`${i18next.t('Error reconnecting to')} ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}: ${error.message}. ${i18next.t('Please try to connect manually or switch to another node')}`, 'error');
             }
             break;
           }
@@ -294,7 +300,7 @@ export default function Home() {
         }
         onClick={handleClick}
       >
-        {connected ? 'Disconnect' : 'Connect'}
+        {connected ? i18next.t('Disconnect') : i18next.t('Connect')}
       </button>
 
       <div className="fixed bottom-0 left-0 w-full flex justify-center z-50">
@@ -320,7 +326,7 @@ export default function Home() {
                 </svg>
               )}
             </div>
-            <Tooltip content="IPv6 may significantly improve the speed if your ISP's IPv4 network is congested. For 4G/5G connections, IPv6 is usually enabled by default.">
+            <Tooltip content={i18next.t("IPV6 explanation")}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="18"
@@ -339,7 +345,7 @@ export default function Home() {
                 </svg>
             </Tooltip>
           </div>
-          <div>Balance: {user.traffic_used ? user.traffic_used : 0}GB/{user.traffic_limit ? user.traffic_limit : '∞'}GB</div>
+          <div>{i18next.t("Usage")}: {user.traffic_used ? user.traffic_used : 0}GB/{user.traffic_limit ? user.traffic_limit : '∞'}GB</div>
         </div>
       </div>
 
