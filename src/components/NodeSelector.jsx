@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 
+import '@/app/i18n'
+import i18next from 'i18next';
+
 const getCountryCode = (description) => {
   if (!description || description.length < 2) return "us"; // fallback
   return description.slice(0, 2).toLowerCase(); // e.g., "US" => "us"
@@ -53,8 +56,8 @@ const NodeSelector = ({
         </div>
         <div className="flex flex-col flex-grow">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Select node:</span>
-            <div className="text-sm text-gray-500 border px-1 rounded-md ml-1">{selectedServer?.tag ?? "Free"}</div>
+            <span className="text-sm text-gray-500">{i18next.t('Select node:')}</span>
+            <div className="text-sm text-gray-500 border px-1 rounded-md ml-1">{selectedServer?.tag ?? i18next.t('Free')}</div>
           </div>
           <div className="text-md">
             {selectedServer?.description || selectedServer?.ip}
@@ -117,7 +120,7 @@ const NodeSelector = ({
                 />
                 <div className="flex flex-row items-center gap-2">
                 <div className="">{s.description || s.ip}</div>
-                <div className="text-sm text-gray-500 border px-1 rounded-md">{s.tag ?? "Free"}</div>
+                <div className="text-sm text-gray-500 border px-1 rounded-md">{s.tag ?? i18next.t("Free")}</div>
                 </div>
               </div>
               <div className={`text-sm ${pingColor}`}>{s.ping ?? "- "}ms</div>

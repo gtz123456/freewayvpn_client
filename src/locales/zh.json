@@ -1,0 +1,38 @@
+{
+  "Email": "邮箱",
+  "Password": "密码",
+  "Login": "登录",
+  "Register": "注册",
+  "Don't have an account?": "还没有账号？",
+  "Already have an account?": "已经有账号？",
+  "Version not supported": "版本不受支持。请更新到最新版本。",
+  "Error checking version": "检查版本时出错。请重试。",
+  "Login failed": "登录失败。请重试。",
+  "Registration successful": "注册成功！请登录。",
+  "Registration failed": "注册失败。请重试。",
+
+  "User data invalid": "用户数据无效。请重新登录。",
+  "Error fetching user data": "获取用户数据时出错。请重试。",
+  "Reconnected to": "已重新连接到",
+  "Error reconnecting to": "重新连接时出错",
+  "Please try to connect manually or switch to another node": "请尝试手动连接或切换到其他节点",
+
+  "IPV6 explanation": "启用IPv6可能会显著提高速度。4G/5G网络默认支持IPv6。",
+  "Usage": "已用流量",
+
+  "Free plan": "免费套餐",
+  "Select node:": "选择节点：",
+  "Free": "免费",
+
+  "Speed": "实时速度",
+  "Download": "下载",
+  "Upload": "上传",
+  "Transfer": "流量统计",
+
+  "Connect": "连接",
+  "Disconnect": "断开",
+
+  "ADGuard": "广告过滤",
+  "Load Balancing": "负载均衡",
+  "Filter": "选择要连接的网站"
+}

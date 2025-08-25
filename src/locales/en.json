@@ -1,0 +1,38 @@
+{
+  "Email": "Email",
+  "Password": "Password",
+  "Login": "Login",
+  "Register": "Register",
+  "Don't have an account?": "Don't have an account?",
+  "Already have an account?": "Already have an account?",
+  "Version not supported": "Version not supported. Please update to the latest version.",
+  "Error checking version": "Error checking version. Please try again.",
+  "Login failed": "Login failed. Please try again.",
+  "Registration successful": "Registration successful! Please log in.",
+  "Registration failed": "Registration failed. Please try again.",
+
+  "User data invalid": "User data is invalid. Please log in again.",
+  "Error fetching user data": "Error fetching user data. Please try again.",
+  "Reconnected to": "Reconnected to",
+  "Error reconnecting to": "Error reconnecting to",
+  "Please try to connect manually or switch to another node": "Please try to connect manually or switch to another node",
+
+  "IPV6 explanation": "IPv6 may significantly improve the speed if your ISP's IPv4 network is congested. For 4G/5G connections, IPv6 is usually enabled by default.",
+  "Usage": "Usage",
+
+  "Free plan": "Free plan",
+  "Select node:": "Select node:",
+  "Free": "Free",
+
+  "Speed": "Speed",
+  "Download": "Download",
+  "Upload": "Upload",
+  "Transfer": "Transfer",
+
+  "Connect": "Connect",
+  "Disconnect": "Disconnect",
+
+  "ADGuard": "ADGuard",
+  "Load Balancing": "Load Balancing",
+  "Filter": "Filter"
+}

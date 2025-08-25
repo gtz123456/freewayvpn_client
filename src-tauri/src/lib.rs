@@ -46,7 +46,8 @@ pub fn run() {
             close_xray,
             check_ipv6,
             ping,
-            get_xray_stats
+            get_xray_stats,
+            get_system_language,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -489,5 +490,37 @@ async fn get_xray_stats(handle: tauri::AppHandle) -> String {
             let _stderr = String::from_utf8_lossy(&output.stderr);
             return "{}".to_string();
         }
+    }
+}
+
+#[tauri::command]
+async fn get_system_language() -> Option<String> {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Globalization::GetUserDefaultLocaleName;
+
+        let mut buffer = [0u16; 85]; // LOCALE_NAME_MAX_LENGTH = 85
+        let len = unsafe { GetUserDefaultLocaleName(&mut buffer) };
+        if len > 0 {
+            if let Ok(locale) = String::from_utf16(&buffer[..(len as usize - 1)]) {
+                // "en-US" -> "en"
+                return locale.split('-').next().map(|s| s.to_lowercase());
+            }
+        }
+        None
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    {
+        use std::env;
+        env::var("LC_ALL")
+            .ok()
+            .filter(|v| !v.is_empty())
+            .or_else(|| env::var("LANG").ok())
+            .map(|lang| {
+                let lang = lang.split('.').next().unwrap_or(&lang);
+                let lang = lang.split('_').next().unwrap_or(lang);
+                lang.to_lowercase()
+            })
     }
 }

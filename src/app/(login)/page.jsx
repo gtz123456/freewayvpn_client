@@ -1,12 +1,19 @@
 'use client'
 
+import '@/app/i18n'
+import i18next from 'i18next';
+import { I18nContext } from '@/app/i18n';
+
+import { invoke } from '@tauri-apps/api/core';
 import { fetch } from '@tauri-apps/plugin-http';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import AutoDismissMessageQueue from '@/components/AutoDismissMessageQueue';
 
 export default function Home() {
+  const { lang } = useContext(I18nContext);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true); // Controls whether it's login or register mode
@@ -35,12 +42,12 @@ export default function Home() {
           // handleSuccess('Version check successful.');
         } else {
           versionSupported = false; // Set to false if the version is not supported
-          messageRef.current?.addMessage('Version not supported. Please update the app.', 'error');
+          messageRef.current?.addMessage(i18next.t('Version not supported'), 'error');
           console.error('Version not supported');
         }
       })
       .catch((err) => {
-        messageRef.current?.addMessage('Error checking version. Please try again later.', 'error');
+        messageRef.current?.addMessage(i18next.t('Error checking version'), 'error');
         versionSupported = false;
       });
   }
@@ -81,7 +88,7 @@ export default function Home() {
       })
       .catch((err) => {
         console.error('Error during login:', err);
-        messageRef.current?.addMessage('Login failed. Please check your credentials.', 'error');
+        messageRef.current?.addMessage(i18next.t('Login failed'), 'error');
       });
   }
 
@@ -100,17 +107,33 @@ export default function Home() {
           throw new Error(text || 'Registration failed');
         }
         console.log('Registered with:', { "Email": email, "Password": password });
-        messageRef.current?.addMessage('Registration successful! Please login.', 'success');
+        messageRef.current?.addMessage(i18next.t('Registration successful'), 'success');
         setIsLogin(true); // Switch to login mode after successful registration
       })
       .catch((err) => {
         console.error('Error:', err);
-        messageRef.current?.addMessage('Registration failed. Please try again.', 'error');
+        messageRef.current?.addMessage(i18next.t('Registration failed'), 'error');
       });
   }
 
   useEffect(() => {
     handleCheckVersion();
+
+    let token = localStorage.getItem('token');
+    if (token) {
+      router.push('/main');
+    } else {
+      console.log('No token found, staying on login page');
+    }
+
+    let lang = localStorage.getItem('lang');
+    if (lang) {
+      i18next.changeLanguage(lang);
+    } else {
+      invoke('get_system_language').then((lng) => {
+        console.log('System language:', lng);
+      });
+    }
   }, []);
 
   return (
@@ -118,7 +141,7 @@ export default function Home() {
       <div className="w-full max-w-[350px] mx-auto p-6 border border-white/70 rounded-lg bg-white/40 shadow-xl">
         <form onSubmit={handleSubmit} className="max-w-[275px] mx-auto">
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Email:</label>
+            <label className="block text-sm font-medium text-gray-700">{i18next.t('Email')}</label>
             <input
               type="email"
               value={email}
@@ -128,7 +151,7 @@ export default function Home() {
             />
           </div>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Password:</label>
+            <label className="block text-sm font-medium text-gray-700">{i18next.t('Password')}</label>
             <input
               type="password"
               value={password}
@@ -142,18 +165,18 @@ export default function Home() {
             className="w-full py-2 px-4 bg-blue-400 text-white rounded-md hover:bg-blue-500 transition-colors disabled:opacity-50 max-w-[275px]"
             disabled={versionSupported === false}
           >
-            {isLogin ? 'Login' : 'Register'}
+            {isLogin ? i18next.t('Login') : i18next.t('Register')}
           </button>
         </form>
         <div className="text-center mt-4">
           <p className="text-sm text-gray-600">
-            {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
+            {isLogin ? i18next.t("Don't have an account?") : i18next.t('Already have an account?')} {' '}
             <a
               href="#"
               onClick={() => setIsLogin(!isLogin)}
               className="text-blue-600 hover:underline"
             >
-              {isLogin ? 'Register' : 'Login'}
+              {isLogin ? i18next.t('Register') : i18next.t('Login')}
             </a>
           </p>
         </div>

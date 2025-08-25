@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
+import '@/app/i18n'
+import i18next from 'i18next';
+
 const parseStats = (data) => {
   const result = {
     downlink: 0,
@@ -84,15 +87,15 @@ const NetworkMonitor = ({ isConnected }) => {
     <div className="w-[90%] max-w-xl mx-auto flex items-center gap-3 p-2 pl-3 rounded-xl bg-white/60 shadow-md mt-4">
       <div className="flex w-full">
         <div className="flex-1 flex flex-col items-center">
-          <div>Speed</div>
-          <span className="text-sm text-gray-600 mt-1">Download: {formatSpeed(speed.downlink)}</span>
-          <span className="text-sm text-gray-600 mt-1">Upload: {formatSpeed(speed.uplink)}</span>
+          <div>{i18next.t('Speed')}</div>
+          <span className="text-sm text-gray-600 mt-1">{i18next.t('Download')}: {formatSpeed(speed.downlink)}</span>
+          <span className="text-sm text-gray-600 mt-1">{i18next.t('Upload')}: {formatSpeed(speed.uplink)}</span>
         </div>
         <div className="w-px bg-gray-300 mx-4" style={{ minHeight: '48px' }} />
         <div className="flex-1 flex flex-col items-center">
-          <div>Transfer</div>
-          <span className="text-sm text-gray-600 mt-1">Download: {formatTransfer(prevStats.downlink)}</span>
-          <span className="text-sm text-gray-600 mt-1">Upload: {formatTransfer(prevStats.uplink)}</span>
+          <div>{i18next.t('Transfer')}</div>
+          <span className="text-sm text-gray-600 mt-1">{i18next.t('Download')}: {formatTransfer(prevStats.downlink)}</span>
+          <span className="text-sm text-gray-600 mt-1">{i18next.t('Upload')}: {formatTransfer(prevStats.uplink)}</span>
         </div>
       </div>
     </div>
