@@ -69,16 +69,18 @@ const NetworkMonitor = ({ isConnected }) => {
 
   const formatSpeed = (value) => {
     const num = parseFloat(value);
-    if (num >= 1024) {
-      return `${(num / 1024).toFixed(1)} Mb/s`;
+    if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)} Mb/s`;
     }
     return `${num} Kb/s`;
   };
 
   const formatTransfer = (value) => {
-    const num = parseFloat(value) / 8000; // convert to kB
-    if (num >= 1024) {
-      return `${(num / 1024).toFixed(1)} MB`;
+    const num = parseFloat(value) / 1000; // convert to kB
+    if (num >= 1000 * 1000) {
+      return `${(num / (1000 * 1000)).toFixed(2)} GB`;
+    } else if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)} MB`;
     }
     return `${num.toFixed(1)} kB`;
   };
