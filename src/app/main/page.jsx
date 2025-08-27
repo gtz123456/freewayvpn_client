@@ -272,6 +272,20 @@ export default function Home() {
   };
   
 
+  // Helper to format bytes to human-readable units
+  function formatBytes(bytes) {
+    if (bytes === undefined || bytes === null) return '0 B';
+    if (typeof bytes === 'string') bytes = Number(bytes);
+    if (isNaN(bytes)) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    let i = 0;
+    while (bytes >= 1000 && i < units.length - 1) {
+      bytes /= 1000;
+      i++;
+    }
+    return `${bytes.toFixed(i === 0 ? 0 : 2)} ${units[i]}`;
+  }
+
   return (
     <div className="flex flex-col items-center h-screen gap-4 relative bg-white/20 mt-8">
       <UserInfoCard user={user} settings={settings} setSettings={setSettings} />
@@ -345,7 +359,9 @@ export default function Home() {
                 </svg>
             </Tooltip>
           </div>
-          <div>{i18next.t("Usage")}: {user.traffic_used ? user.traffic_used : 0}GB/{user.traffic_limit ? user.traffic_limit : '∞'}GB</div>
+          <div>
+            {i18next.t("Usage")}: {user.traffic_used ? formatBytes(user.traffic_used) : '0'}/{user.traffic_limit ? formatBytes(user.traffic_limit) : '∞'}
+          </div>
         </div>
       </div>
 
