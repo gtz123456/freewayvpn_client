@@ -190,8 +190,20 @@ export default function Home() {
       method: 'POST',
       headers: { 'Authorization': token },
     });
+
     if (!response.ok) {
-      throw new Error('Failed to connect to node: ' + response.statusText);
+      let errMsg = `Failed to connect to node (HTTP ${response.status})`;
+
+      try {
+        const data = await response.json();
+        if (data.error) {
+          errMsg += `: ${data.error}`;
+        }
+      } catch (e) {
+        errMsg += `: ${response.statusText}`;
+      }
+
+      throw new Error(errMsg);
     }
     return await response.json();
   }
@@ -248,7 +260,7 @@ export default function Home() {
 
       try {
         const data = await connectToNode();
-        
+
         await invoke('launch_xray', {
           uuid: data.uuid,
           pubkey: data.pubkey,
