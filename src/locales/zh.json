@@ -13,6 +13,7 @@
 
   "User data invalid": "用户数据无效。请重新登录。",
   "Error fetching user data": "获取用户数据时出错。请重试。",
+  "Connection lost. Attempting to reconnect...": "连接丢失。正在尝试重新连接...",
   "Reconnected to": "已重新连接到",
   "Error reconnecting to": "重新连接时出错",
   "Please try to connect manually or switch to another node": "请尝试手动连接或切换到其他节点",

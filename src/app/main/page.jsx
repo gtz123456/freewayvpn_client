@@ -134,6 +134,7 @@ export default function Home() {
           console.error(`Heartbeat failed (${heartbeatFailsRef.current}/${MAX_HEARTBEAT_FAILS}):`, error);
           if (heartbeatFailsRef.current === MAX_HEARTBEAT_FAILS) {
             // try to reconnect
+            messageRef.current?.addMessage(i18next.t('Connection lost. Attempting to reconnect...'), 'warning');
             setConnected(false);
             pid && await invoke('close_xray', { pid: pid });
             pid = null;
@@ -247,11 +248,17 @@ export default function Home() {
     }
   }
 
+  // handle connect/disconnect
   const handleClick = async () => {
     const selectedServer = servers[selectedServerIndex];
 
     if (!selectedServer) {
       messageRef.current?.addMessage('No server selected', 'error');
+      return;
+    }
+
+    if (user.traffic_used >= user.traffic_limit) {
+      messageRef.current?.addMessage('Traffic limit reached', 'error');
       return;
     }
 
