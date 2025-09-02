@@ -21,6 +21,11 @@
   "IPV6 explanation": "启用IPv6可能会显著提高速度。4G/5G网络默认支持IPv6。",
   "Usage": "已用流量",
 
+  "100GB/month": "每月100GB流量",
+  "5 Devices allowed": "允许5个设备",
+  "Access to premium servers": "访问专属服务器节点",
+  "Higher speed and lower latency": "更高的速度和更低的延迟",
+
   "Free plan": "免费套餐",
   "Select node:": "选择节点：",
   "Free": "免费",

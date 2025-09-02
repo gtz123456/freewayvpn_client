@@ -307,7 +307,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center h-screen gap-4 relative bg-white/20 mt-8">
-      <UserInfoCard user={user} settings={settings} setSettings={setSettings} />
+      <UserInfoCard user={user} settings={settings} setSettings={setSettings} messageRef={messageRef} />
       <NodeSelector
         servers={servers}
         selectedServerIndex={selectedServerIndex}
