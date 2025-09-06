@@ -134,6 +134,7 @@ export default function Home() {
           console.error(`Heartbeat failed (${heartbeatFailsRef.current}/${MAX_HEARTBEAT_FAILS}):`, error);
           if (heartbeatFailsRef.current === MAX_HEARTBEAT_FAILS) {
             // try to reconnect
+            messageRef.current?.addMessage(i18next.t('Connection lost. Attempting to reconnect...'), 'warning');
             setConnected(false);
             pid && await invoke('close_xray', { pid: pid });
             pid = null;
@@ -190,8 +191,20 @@ export default function Home() {
       method: 'POST',
       headers: { 'Authorization': token },
     });
+
     if (!response.ok) {
-      throw new Error('Failed to connect to node: ' + response.statusText);
+      let errMsg = `Failed to connect to node (HTTP ${response.status})`;
+
+      try {
+        const data = await response.json();
+        if (data.error) {
+          errMsg += `: ${data.error}`;
+        }
+      } catch (e) {
+        errMsg += `: ${response.statusText}`;
+      }
+
+      throw new Error(errMsg);
     }
     return await response.json();
   }
@@ -235,6 +248,7 @@ export default function Home() {
     }
   }
 
+  // handle connect/disconnect
   const handleClick = async () => {
     const selectedServer = servers[selectedServerIndex];
 
@@ -243,12 +257,17 @@ export default function Home() {
       return;
     }
 
+    if (user.traffic_used >= user.traffic_limit) {
+      messageRef.current?.addMessage('Traffic limit reached', 'error');
+      return;
+    }
+
     if (!connected) {
       // console.log('Connecting to server:', selectedServer.ip);
 
       try {
         const data = await connectToNode();
-        
+
         await invoke('launch_xray', {
           uuid: data.uuid,
           pubkey: data.pubkey,
@@ -288,7 +307,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center h-screen gap-4 relative bg-white/20 mt-8">
-      <UserInfoCard user={user} settings={settings} setSettings={setSettings} />
+      <UserInfoCard user={user} settings={settings} setSettings={setSettings} messageRef={messageRef} />
       <NodeSelector
         servers={servers}
         selectedServerIndex={selectedServerIndex}

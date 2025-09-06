@@ -13,6 +13,7 @@
 
   "User data invalid": "User data is invalid. Please log in again.",
   "Error fetching user data": "Error fetching user data. Please try again.",
+  "Connection lost. Attempting to reconnect...": "Connection lost. Attempting to reconnect...",
   "Reconnected to": "Reconnected to",
   "Error reconnecting to": "Error reconnecting to",
   "Please try to connect manually or switch to another node": "Please try to connect manually or switch to another node",

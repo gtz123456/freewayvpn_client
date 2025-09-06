@@ -240,6 +240,9 @@ async fn launch_xray(
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
 
+    // print cmd
+    println!("xray command: {:?}", cmd);
+
     let mut child = cmd.spawn().expect("Failed to spawn xray process");
 
     // Simulate CommandEvent handling using std::thread and mpsc
@@ -251,6 +254,7 @@ async fn launch_xray(
             let reader = BufReader::new(stdout);
             for line in reader.split(b'\n') {
                 if let Ok(line) = line {
+                    println!("xray stdout: {}", String::from_utf8_lossy(&line));
                     let _ = tx.send(("stdout", line));
                 }
             }
@@ -263,6 +267,7 @@ async fn launch_xray(
             let reader = BufReader::new(stderr);
             for line in reader.split(b'\n') {
                 if let Ok(line) = line {
+                    eprintln!("xray stderr: {}", String::from_utf8_lossy(&line));
                     let _ = tx.send(("stderr", line));
                 }
             }

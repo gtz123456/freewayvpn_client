@@ -127,13 +127,14 @@ export default function Home() {
     }
 
     let lang = localStorage.getItem('lang');
-    if (lang) {
-      i18next.changeLanguage(lang);
-    } else {
+    if (!lang) {
       invoke('get_system_language').then((lng) => {
         console.log('System language:', lng);
+        localStorage.setItem('lang', lng);
+        lang = lng;
       });
     }
+    i18next.changeLanguage(lang);
   }, []);
 
   return (
