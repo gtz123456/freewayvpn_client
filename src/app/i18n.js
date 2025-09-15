@@ -22,7 +22,10 @@ i18next.init({
   resources,
 });
 
-export const I18nContext = createContext({ lang: i18next.language });
+export const I18nContext = createContext({
+  lang: i18next.language,
+  setLanguage: () => {},
+});
 
 export function I18nProvider({ children }) {
   const [lang, setLang] = useState(i18next.language);
@@ -35,8 +38,13 @@ export function I18nProvider({ children }) {
     };
   }, []);
 
+  const setLanguage = (lng) => {
+    i18next.changeLanguage(lng);
+    localStorage.setItem("lang", lng);
+  };
+
   return (
-    <I18nContext.Provider value={{ lang }}>
+    <I18nContext.Provider value={{ lang, setLanguage }}>
       {children}
     </I18nContext.Provider>
   );

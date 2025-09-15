@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import AutoDismissMessageQueue from '@/components/AutoDismissMessageQueue';
 
 export default function Home() {
-  const { lang } = useContext(I18nContext);
+  const { setLanguage } = useContext(I18nContext);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -134,7 +134,7 @@ export default function Home() {
         lang = lng;
       });
     }
-    i18next.changeLanguage(lang);
+    setLanguage(lang);
   }, []);
 
   return (
