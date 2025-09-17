@@ -1,11 +1,12 @@
 import { Router } from "next/router";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { useRouter } from "next/navigation";
 
 import Subscribe from "./Subscribe";
 
 import '@/app/i18n'
 import i18next from 'i18next';
+import { I18nContext } from '@/app/i18n';
 
 // Helper component for the toggle switch
 const ToggleSwitch = ({ label, isEnabled, onToggle }) => (
@@ -32,13 +33,11 @@ const FilterCheckbox = ({ label, isChecked, onToggle }) => (
 );
 
 const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
-  const [lang, setLang] = useState(i18next.language);
+  const { lang, setLanguage } = useContext(I18nContext);
 
   const handleChange = (e) => {
     const newLang = e.target.value;
-    i18next.changeLanguage(newLang).then(() => {
-      setLang(newLang);
-    });
+    setLanguage(newLang);
   };
 
   useEffect(() => {
