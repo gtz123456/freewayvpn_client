@@ -40,5 +40,7 @@
 
   "ADGuard": "广告过滤",
   "Load Balancing": "负载均衡",
-  "Filter": "选择要连接的网站"
+  "Filter": "选择要连接的网站",
+
+  "$3/month": "21元/月"
 }

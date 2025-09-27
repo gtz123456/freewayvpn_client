@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 import '@/app/i18n'
 import i18next from 'i18next';
@@ -18,6 +18,8 @@ const NodeSelector = ({
 
   const selectedServer = servers[selectedServerIndex];
   const countryCode = getCountryCode(selectedServer?.description);
+
+  const menuRef = useRef(null);
 
   const handleSelect = (index) => {
     setSelectedServerIndex(index);
@@ -42,6 +44,17 @@ const NodeSelector = ({
       )}
     </svg>
   );
+
+  // Close menu if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
 
   return (
@@ -92,7 +105,7 @@ const NodeSelector = ({
       </button>
 
       {dropdownOpen && (
-        <div className="absolute left-0 top-full mt-2 w-full max-w-xl bg-white rounded-xl shadow-lg z-10 max-h-96 overflow-y-auto">
+        <div ref={menuRef} className="absolute left-0 top-full mt-2 w-full max-w-xl bg-white rounded-xl shadow-lg z-10 max-h-96 overflow-y-auto">
           {servers.map((s, index) => {
             const code = getCountryCode(s.description);
             // Determine ping color
