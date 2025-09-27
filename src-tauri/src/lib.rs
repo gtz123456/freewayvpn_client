@@ -7,6 +7,7 @@ use std::{fs, io::Write};
 
 use sysproxy::Sysproxy;
 // use std::sync::Mutex;
+use std::path::PathBuf;
 use tauri::{path::BaseDirectory, Manager, RunEvent};
 
 use surge_ping::{Client, Config, PingIdentifier, PingSequence};
@@ -215,10 +216,51 @@ async fn launch_xray(
     .expect("error writing to file");
 
     // start xray process
-    let xray_bin = handle
-        .path()
-        .resolve("xray", BaseDirectory::Resource)
-        .expect("error resolving xray executable path");
+    let xray_bin: PathBuf = if cfg!(target_os = "macos") {
+        // macOS: 先尝试 Resource 目录
+        let resource_path = handle
+            .path()
+            .resolve("xray", BaseDirectory::Resource)
+            .expect("error resolving Resource dir")
+            .to_path_buf();
+
+        if resource_path.exists() {
+            resource_path
+        } else {
+            // Resource 下找不到，再尝试 MacOS 文件夹
+            let resources_dir = handle
+                .path()
+                .resolve("", BaseDirectory::Resource)
+                .expect("error resolving Resources dir");
+
+            let macos_path = resources_dir
+                .parent() // Contents
+                .expect("failed to get parent of Resources")
+                .join("MacOS")
+                .join("xray");
+
+            if macos_path.exists() {
+                macos_path
+            } else {
+                panic!(
+                    "xray binary not found in either Resource ({:?}) or MacOS ({:?})",
+                    resource_path, macos_path
+                );
+            }
+        }
+    } else {
+        // Windows / dev: Resource 目录
+        let path = handle
+            .path()
+            .resolve("xray", BaseDirectory::Resource)
+            .expect("error resolving xray executable path");
+
+        if !path.exists() {
+            panic!("xray binary not found: {:?}", path);
+        }
+
+        path
+    };
 
     println!("xray_bin: {:?}", xray_bin);
 
