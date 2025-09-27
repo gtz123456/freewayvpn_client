@@ -108,7 +108,7 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
       {/* Info */}
       <div className="flex flex-col">
         <div className="text-sm text-gray-600">{user.email ? user.email : '?@freewayvpn.top'}</div>
-        <div className="text-xs text-gray-400">{user.plan ? i18next.t(user.plan) : i18next.t('Free plan')}</div>
+        <div className="text-xs text-gray-400 dark:text-gray-600">{user.plan ? i18next.t(user.plan) : i18next.t('Free plan')}</div>
       </div>
 
       {/* Settings button and dropdown menu container TODO: extract as separate settings component */}

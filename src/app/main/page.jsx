@@ -306,7 +306,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col items-center h-screen gap-4 relative bg-white/20 mt-8">
+    <div className="flex flex-col items-center h-screen gap-4 relative bg-white/20 pt-8 dark:text-gray-700">
       <UserInfoCard user={user} settings={settings} setSettings={setSettings} messageRef={messageRef} />
       <NodeSelector
         servers={servers}
@@ -336,8 +336,8 @@ export default function Home() {
         {connected ? i18next.t('Disconnect') : i18next.t('Connect')}
       </button>
 
-      <div className="fixed bottom-0 left-0 w-full flex justify-center z-50">
-        <div className="bottom-bar flex justify-between w-full max-w-md p-1 shadow-md bg-blue-50">
+      <div className="fixed bottom-0 left-0 w-full flex justify-center z-50 ">
+        <div className="bottom-bar flex justify-between w-full max-w-md p-1 shadow-md bg-blue-50 dark:bg-[#d1d5dc] opacity-80">
           <div className="flex items-center gap-1">
             <div className="flex items-center gap-1">
               <span>IPv6</span>

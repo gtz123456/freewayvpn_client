@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
+import i18next from 'i18next';
+
 const PREMIUM_FEATURES = [
   '100GB/month',
   '5 Devices allowed',
@@ -51,11 +53,11 @@ const Subscribe = ({ messageRef }) => {
       {step === 1 && (
         <>
         <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-4">Premium</h2>
+            <h2 className="text-2xl font-semibold mb-4">{i18next.t('Premium')}</h2>
 
             <ul className="mb-2 list-none text-gray-700 inline-block text-left">
               {PREMIUM_FEATURES.map((f) => (
-                <li className="relative pl-8 mb-2">
+                <li className="relative pl-8 mb-2" key={f}>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-5 w-5 text-green-500 absolute left-0 top-1"
@@ -65,12 +67,12 @@ const Subscribe = ({ messageRef }) => {
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  {f}
+                  {i18next.t(f)}
                 </li>
               ))}
             </ul>
 
-            <div className="font-bold text-xl my-4 mt-0 mb-2">{PREMIUM_PRICE}</div>
+            <div className="font-bold text-xl my-4 mt-0 mb-2">{i18next.t(PREMIUM_PRICE)}</div>
             <button
             onClick={handleSubscribe}
             disabled={loading}
