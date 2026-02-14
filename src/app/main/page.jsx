@@ -19,6 +19,8 @@ import UserInfoCard from '@/components/UserCard';
 import NodeSelector from '@/components/NodeSelector';
 import NetworkMonitor from '@/components/NetworkMonitor';
 
+import WifiToggleButton from '@/components/WifiToggleButton';
+
 
 let pid;
 
@@ -326,15 +328,10 @@ export default function Home() {
         />
       </div>
 
-      <button
-        className={`w-36 h-16 rounded-3xl text-white font-semibold transition-all duration-300 
-          ${connected ? 'bg-red-400 hover:bg-red-500' : 'bg-blue-400 hover:bg-blue-500'}
-          hover:scale-103 shadow-lg flex items-center justify-center`
-        }
+      <WifiToggleButton
+        connected={connected}
         onClick={handleClick}
-      >
-        {connected ? i18next.t('Disconnect') : i18next.t('Connect')}
-      </button>
+      />
 
       <div className="fixed bottom-0 left-0 w-full flex justify-center z-50 ">
         <div className="bottom-bar flex justify-between w-full max-w-md p-1 shadow-md bg-blue-50 dark:bg-[#d1d5dc] opacity-80">

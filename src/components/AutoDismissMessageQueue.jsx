@@ -36,7 +36,7 @@ const AutoDismissMessageQueue = forwardRef(function AutoDismissMessageQueue(_, r
   const [messages, setMessages] = useState([]);
 
   useImperativeHandle(ref, () => ({
-    addMessage: (msg, type = 'error', duration = 2000) => {
+    addMessage: (msg, type = 'error', duration = 3000) => {
       const id = idCounter++;
       setMessages((prev) => [...prev, { id, msg, type, duration, leaving: false }]);
     },

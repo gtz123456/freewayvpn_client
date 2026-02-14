@@ -54,6 +54,18 @@ export default function Home() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      messageRef.current?.addMessage(i18next.t('Invalid email format'), 'error');
+      return;
+    }
+
+    if (password.length < 6) {
+      messageRef.current?.addMessage(i18next.t('Password must be at least 6 characters'), 'error');
+      return;
+    }
+
     if (isLogin) {
       handleLogin();
     } else {
@@ -72,23 +84,19 @@ export default function Home() {
       body: JSON.stringify({ "Email": email, "Password": password }),
     })
       .then((res) => res.json())
-      .then((data) => {
-        const token = data.token;
-        
-        if (token) {
-          console.log('JWT Token:', token);
-
-          localStorage.setItem('token', token);
-
-          // Redirect to the main page
+      .then((data) => {        
+        if (data.token) {
+          console.log('JWT Token:', data.token);
+          localStorage.setItem('token', data.token);
           router.push('/main');
         } else {
-          console.error('No token found in response');
+          console.error('Login failed:', data.error || 'No token found');
+          messageRef.current?.addMessage(i18next.t('Login failed') + ' ' + (data.error || 'No token found'), 'error');
         }
       })
       .catch((err) => {
         console.error('Error during login:', err);
-        messageRef.current?.addMessage(i18next.t('Login failed'), 'error');
+        messageRef.current?.addMessage(i18next.t('Login failed') + ' ' + err.message, 'error');
       });
   }
 
@@ -101,18 +109,19 @@ export default function Home() {
       },
       body: JSON.stringify({ "Email": email, "Password": password }),
     })
-      .then(async (res) => {
-        const text = await res.text();
-        if (!res.ok) {
-          throw new Error(text || 'Registration failed');
+      .then((res) => {
+        if (res.ok) {
+          messageRef.current?.addMessage(i18next.t('Registration successful'), 'success');
+          setIsLogin(true); // Switch to login mode after successful registration
+        } else {
+          return res.json().then((data) => {
+            throw new Error(data.error || 'Registration failed');
+          });
         }
-        console.log('Registered with:', { "Email": email, "Password": password });
-        messageRef.current?.addMessage(i18next.t('Registration successful'), 'success');
-        setIsLogin(true); // Switch to login mode after successful registration
       })
       .catch((err) => {
-        console.error('Error:', err);
-        messageRef.current?.addMessage(i18next.t('Registration failed'), 'error');
+        console.error('Error during registration:', err);
+        messageRef.current?.addMessage(i18next.t('Registration failed') + ' ' + err.message, 'error');
       });
   }
 
