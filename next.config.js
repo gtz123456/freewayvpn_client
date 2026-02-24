@@ -1,6 +1,11 @@
 const isProd = process.env.NODE_ENV === 'production';
 
-const internalHost = process.env.TAURI_DEV_HOST || 'localhost';
+/**
+ * TAURI_DEV_HOST is set when running on a physical device (tauri ios dev --host).
+ * On simulator, it's unset — use relative assetPrefix so /_next/* stays same-origin.
+ * On device, use the LAN IP so the device can reach the dev server.
+ */
+const internalHost = process.env.TAURI_DEV_HOST;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -12,8 +17,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Configure assetPrefix or else the server won't properly resolve your assets.
-  assetPrefix: isProd ? undefined : `http://${internalHost}:3000`,
+  // Simulator: empty prefix  → /_next/* is same-origin inside Tauri WebView (no CORS)
+  // Device:    absolute IP  → WebView fetches from Mac's LAN IP (cross-origin OK with --host)
+  // Production: undefined  → Next.js uses its default
+  assetPrefix: isProd ? undefined : (internalHost ? `http://${internalHost}:3000` : ''),
 };
 
 export default nextConfig;

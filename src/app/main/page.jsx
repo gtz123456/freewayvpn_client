@@ -5,6 +5,7 @@ import i18next from 'i18next';
 import { I18nContext } from '@/app/i18n';
 
 import { fetch } from '@tauri-apps/plugin-http';
+import { listen } from '@tauri-apps/api/event';
 
 import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
@@ -71,6 +72,17 @@ export default function Home() {
       setIpv6Checked(false);
     }
   }, [servers, selectedServerIndex]);
+
+  // 监听 Rust 侧发出的 vpn-log 事件，展示到消息队列
+  useEffect(() => {
+    let unlisten;
+    listen('vpn-log', (event) => {
+      const { msg, type } = event.payload;
+      const duration = type === 'error' ? 5000 : 3000;
+      messageRef.current?.addMessage(msg, type ?? 'info', duration);
+    }).then((fn) => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
