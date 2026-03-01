@@ -1056,6 +1056,8 @@ name = "freewayvpn_client"
 version = "0.1.0"
 dependencies = [
  "deranged",
+ "jni-sys",
+ "libc",
  "netstat",
  "serde",
  "serde_json",

@@ -1,0 +1,252 @@
+﻿cargo :    Compiling 
+ring v0.17.14
+At line:1 char:1
++ cargo build --package 
+freewayvpn_client 
+--target 
+x86_64-linux-android ...
++ ~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo      
+        : NotSpecified  
+  : (   Compiling rin   
+ g v0.17.14:String)     
+[], RemoteException
+    + FullyQualifiedErr 
+   orId : NativeComman  
+  dError
+ 
+   Compiling tokio-util 
+v0.7.15
+   Compiling jni v0.21.1
+   Compiling urlpattern 
+v0.3.0
+   Compiling toml 
+v0.8.23
+   Compiling tower 
+v0.5.2
+   Compiling 
+tauri-runtime v2.7.0
+   Compiling sha2 
+v0.10.9
+   Compiling kuchikiki 
+v0.8.8-speedreader
+   Compiling 
+webpki-roots v1.0.1
+   Compiling 
+ndk-context v0.1.1
+   Compiling iri-string 
+v0.7.8
+   Compiling 
+lazy_static v1.5.0
+   Compiling 
+publicsuffix v2.3.0
+   Compiling wry v0.52.1
+   Compiling option-ext 
+v0.2.0
+   Compiling 
+tauri-runtime-wry v2.7.1
+   Compiling 
+http-body-util v0.1.3
+   Compiling 
+serde_urlencoded v0.7.1
+   Compiling 
+encoding_rs v0.8.35
+   Compiling mime 
+v0.3.17
+   Compiling 
+serialize-to-javascript 
+v0.1.1
+   Compiling heck v0.5.0
+   Compiling zerocopy 
+v0.8.26
+   Compiling 
+signal-hook v0.3.18
+   Compiling h2 v0.4.10
+   Compiling dirs-sys 
+v0.5.0
+   Compiling 
+cookie_store v0.21.1
+   Compiling 
+tauri-plugin-fs v2.4.0
+   Compiling 
+tauri-utils v2.5.0
+   Compiling is-docker 
+v0.2.0
+   Compiling 
+windows-targets v0.52.6
+   Compiling no-std-net 
+v0.6.0
+   Compiling rand_core 
+v0.9.3
+   Compiling os_pipe 
+v1.2.2
+   Compiling pathdiff 
+v0.2.3
+   Compiling 
+tauri-plugin-process 
+v2.3.0
+   Compiling 
+tauri-plugin-opener 
+v2.4.0
+   Compiling dirs v6.0.0
+   Compiling 
+tauri-plugin-shell 
+v2.3.0
+   Compiling tower-http 
+v0.6.6
+   Compiling pnet_base 
+v0.34.0
+   Compiling is-wsl 
+v0.4.0
+   Compiling 
+windows-result v0.2.0
+   Compiling tao v0.34.0
+   Compiling hex v0.4.3
+   Compiling data-url 
+v0.3.1
+   Compiling 
+tauri-plugin-http v2.5.0
+   Compiling sysproxy 
+v0.3.0
+   Compiling ppv-lite86 
+v0.2.21
+   Compiling hyper 
+v1.6.0
+   Compiling sigchld 
+v0.2.3
+   Compiling open v5.3.2
+   Compiling 
+pnet_macros_support 
+v0.34.0
+   Compiling 
+windows-strings v0.1.0
+error: failed to run 
+custom build command 
+for `ring v0.17.14`
+
+Caused by:
+  process didn't exit 
+successfully: `D:\VPN\Fr
+eewayVPN_Client\src-taur
+i\target\debug\build\rin
+g-a34c4ac2acb2af63\build
+-script-build` (exit 
+code: 1)
+  --- stdout
+  cargo:rerun-if-env-cha
+nged=CARGO_MANIFEST_DIR
+  cargo:rerun-if-env-cha
+nged=CARGO_PKG_NAME
+  cargo:rerun-if-env-cha
+nged=CARGO_PKG_VERSION_M
+AJOR
+  cargo:rerun-if-env-cha
+nged=CARGO_PKG_VERSION_M
+INOR
+  cargo:rerun-if-env-cha
+nged=CARGO_PKG_VERSION_P
+ATCH
+  cargo:rerun-if-env-cha
+nged=CARGO_PKG_VERSION_P
+RE
+  cargo:rerun-if-env-cha
+nged=CARGO_MANIFEST_LINK
+S
+  cargo:rerun-if-env-cha
+nged=RING_PREGENERATE_AS
+M
+  cargo:rerun-if-env-cha
+nged=OUT_DIR
+  cargo:rerun-if-env-cha
+nged=CARGO_CFG_TARGET_AR
+CH
+  cargo:rerun-if-env-cha
+nged=CARGO_CFG_TARGET_OS
+  cargo:rerun-if-env-cha
+nged=CARGO_CFG_TARGET_EN
+V
+  cargo:rerun-if-env-cha
+nged=CARGO_CFG_TARGET_EN
+DIAN
+  OPT_LEVEL = Some(0)
+  OUT_DIR = Some(D:\VPN\
+FreewayVPN_Client\src-ta
+uri\target\x86_64-linux-
+android\debug\build\ring
+-5dbbdee0d21a6e6f\out)
+  TARGET = Some(x86_64-l
+inux-android)
+  HOST = Some(x86_64-pc-
+windows-msvc)
+  cargo:rerun-if-env-cha
+nged=CC_x86_64-linux-and
+roid
+  
+CC_x86_64-linux-android 
+= None
+  cargo:rerun-if-env-cha
+nged=CC_x86_64_linux_and
+roid
+  
+CC_x86_64_linux_android 
+= None
+  cargo:rerun-if-env-cha
+nged=TARGET_CC
+  TARGET_CC = None
+  cargo:rerun-if-env-cha
+nged=CC
+  CC = Some(E:\Users\gtz
+\AppData\Local\Android\S
+dk\ndk\29.0.14206865\too
+lchains\llvm\prebuilt\wi
+ndows-x86_64\bin\x86_64-
+linux-android24-clang.cm
+d)
+  RUSTC_WRAPPER = None
+  cargo:rerun-if-env-cha
+nged=CC_ENABLE_DEBUG_OUT
+PUT
+  cargo:rerun-if-env-cha
+nged=CRATE_CC_NO_DEFAULT
+S
+  CRATE_CC_NO_DEFAULTS 
+= None
+  DEBUG = Some(true)
+  cargo:rerun-if-env-cha
+nged=CFLAGS
+  CFLAGS = None
+  cargo:rerun-if-env-cha
+nged=TARGET_CFLAGS
+  TARGET_CFLAGS = None
+  cargo:rerun-if-env-cha
+nged=CFLAGS_x86_64_linux
+_android
+  CFLAGS_x86_64_linux_an
+droid = None
+  cargo:rerun-if-env-cha
+nged=CFLAGS_x86_64-linux
+-android
+  CFLAGS_x86_64-linux-an
+droid = None
+  
+CARGO_ENCODED_RUSTFLAGS 
+= Some()
+
+  --- stderr
+
+
+  error occurred in 
+cc-rs: failed to find 
+tool "x86_64-linux-andro
+id-ar": program not 
+found (see https://docs.
+rs/cc/latest/cc/#compile
+-time-requirements for 
+help)
+
+
+warning: build failed, 
+waiting for other jobs 
+to finish...
