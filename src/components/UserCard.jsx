@@ -168,7 +168,7 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
                 <FilterCheckbox label="ChatGPT" isChecked={settings.filterChatGPT} onToggle={() => handleSettingChange('filterChatGPT')} />
                 <button
                   className="mt-2 px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors"
-                  onClick={() => { localStorage.removeItem('token'); router.push('/'); }}
+                  onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('auth_email'); localStorage.removeItem('auth_password'); router.push('/'); }}
                 >
                   Log off
                 </button>

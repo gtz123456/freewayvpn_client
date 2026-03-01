@@ -5,6 +5,7 @@ import i18next from 'i18next';
 import { I18nContext } from '@/app/i18n';
 
 import { fetch } from '@tauri-apps/plugin-http';
+import { authFetch } from '@/utils/authFetch';
 import { listen } from '@tauri-apps/api/event';
 
 import { useState, useEffect, useContext } from 'react';
@@ -187,10 +188,8 @@ export default function Home() {
   }, [connected]);
 
   async function getUser() {
-    const token = localStorage.getItem('token');
-    const response = await fetch(server + '/user', {
+    const response = await authFetch(server + '/user', {
       method: 'GET',
-      headers: { 'Authorization': token },
     });
     if (!response.ok) {
       throw new Error('Failed to fetch user data');
@@ -199,10 +198,8 @@ export default function Home() {
   }
 
   async function connectToNode() {
-    const token = localStorage.getItem('token');
-    const response = await fetch(server + '/connect?serviceid=' + servers[selectedServerIndex].serviceid, {
+    const response = await authFetch(server + '/connect?serviceid=' + servers[selectedServerIndex].serviceid, {
       method: 'POST',
-      headers: { 'Authorization': token },
     });
 
     if (!response.ok) {
@@ -223,10 +220,8 @@ export default function Home() {
   }
 
   async function getServers() {
-    const token = localStorage.getItem('token');
-    const response = await fetch(server + '/servers', {
+    const response = await authFetch(server + '/servers', {
       method: 'GET',
-      headers: { 'Authorization': token },
     });
     return await response.json();
   }
@@ -237,14 +232,12 @@ export default function Home() {
       return Promise.reject(new Error('No server selected'));
     }
 
-    const token = localStorage.getItem('token');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
     try {
-      const response = await fetch(server + '/heartbeat?serviceid=' + serviceID, {
+      const response = await authFetch(server + '/heartbeat?serviceid=' + serviceID, {
         method: 'POST',
-        headers: { 'Authorization': token },
         signal: controller.signal,
       });
       clearTimeout(timeoutId);

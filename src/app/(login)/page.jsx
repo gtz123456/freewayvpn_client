@@ -88,6 +88,8 @@ export default function Home() {
         if (data.token) {
           console.log('JWT Token:', data.token);
           localStorage.setItem('token', data.token);
+          localStorage.setItem('auth_email', email);
+          localStorage.setItem('auth_password', password);
           router.push('/main');
         } else {
           console.error('Login failed:', data.error || 'No token found');
