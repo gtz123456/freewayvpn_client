@@ -1,4 +1,4 @@
-import { useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useState, useRef, useImperativeHandle, forwardRef } from 'react';
 
 const messageTypes = {
   success: {
@@ -34,6 +34,7 @@ let idCounter = 0;
 
 const AutoDismissMessageQueue = forwardRef(function AutoDismissMessageQueue(_, ref) {
   const [messages, setMessages] = useState([]);
+  const scheduledRef = useRef(new Set());
 
   useImperativeHandle(ref, () => ({
     addMessage: (msg, type = 'error', duration = 3000) => {
@@ -44,11 +45,13 @@ const AutoDismissMessageQueue = forwardRef(function AutoDismissMessageQueue(_, r
 
   useEffect(() => {
     messages.forEach(({ id, leaving, duration }) => {
-      if (leaving) return;
+      if (leaving || scheduledRef.current.has(id)) return;
+      scheduledRef.current.add(id);
       setTimeout(() => {
         setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, leaving: true } : m)));
         setTimeout(() => {
           setMessages((prev) => prev.filter((m) => m.id !== id));
+          scheduledRef.current.delete(id);
         }, 300);
       }, duration);
     });

@@ -73,7 +73,6 @@ export default function Home() {
     }
   }, [servers, selectedServerIndex]);
 
-  // 监听 Rust 侧发出的 vpn-log 事件，展示到消息队列
   useEffect(() => {
     let unlisten;
     listen('vpn-log', (event) => {

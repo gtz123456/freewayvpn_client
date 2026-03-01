@@ -35,41 +35,26 @@ const FilterCheckbox = ({ label, isChecked, onToggle }) => (
 const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
   const { lang, setLanguage } = useContext(I18nContext);
 
+  // null = all closed, 'subscribe' = subscribe open, 'settings' = settings open
+  const [activeMenu, setActiveMenu] = useState(null);
+
+  const router = useRouter();
+  const menuRef = useRef(null);
+
   const handleChange = (e) => {
     const newLang = e.target.value;
     setLanguage(newLang);
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        menuRef.current && 
-        !menuRef.current.contains(event.target)
-      ) {
-        setIsSettingsOpen(false);
-        setIsSubscribeOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-
-  // State for dropdown visibility
-  const [isSubscribeOpen, setIsSubscribeOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  const router = useRouter();
-
-  // Ref to detect clicks outside the menu
-  const menuRef = useRef(null);
+  const toggleMenu = (menuName) => {
+    setActiveMenu(prev => prev === menuName ? null : menuName);
+  };
 
   // Close menu if clicked outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsSettingsOpen(false);
+        setActiveMenu(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -117,14 +102,14 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
         </div>
       </div>
 
-      {/* Settings button and dropdown menu container TODO: extract as separate settings component */}
+      {/* Settings button and dropdown menu container */}
       <div ref={menuRef} className="ml-auto relative">
         {/* Subscription Button */}
         <button
-          onClick={() => setIsSubscribeOpen(!isSubscribeOpen)}
+          onClick={() => toggleMenu('subscribe')}
           className="p-2 rounded-full hover:bg-gray-200 transition-colors"
           aria-haspopup="true"
-          aria-expanded={isSubscribeOpen}
+          aria-expanded={activeMenu === 'subscribe'}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -151,10 +136,10 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
 
         {/* Settings Button */}
         <button
-          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+          onClick={() => toggleMenu('settings')}
           className="p-2 rounded-full hover:bg-gray-200 transition-colors"
           aria-haspopup="true"
-          aria-expanded={isSettingsOpen}
+          aria-expanded={activeMenu === 'settings'}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -163,10 +148,10 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
         </button>
 
         {/* Subscription Menu */}
-        {isSubscribeOpen && <Subscribe messageRef={messageRef} user={user} />}
+        {activeMenu === 'subscribe' && <Subscribe messageRef={messageRef} user={user} />}
 
         {/* Settings Menu */}
-        {isSettingsOpen && (
+        {activeMenu === 'settings' && (
           <div className="absolute top-full right-0 mt-2 w-56 p-4 bg-white rounded-xl shadow-lg z-10 border border-gray-100">
             <div className="flex flex-col">
                 <select value={lang} onChange={handleChange} className="p-2 rounded border">
