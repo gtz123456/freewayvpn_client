@@ -269,8 +269,6 @@ export default function Home() {
     }
 
     if (!connected) {
-      // console.log('Connecting to server:', selectedServer.ip);
-
       try {
         const data = await connectToNode();
 
@@ -286,7 +284,6 @@ export default function Home() {
         messageRef.current?.addMessage(`Connected to ${selectedServer.description || selectedServer.ip}`, 'success');
         setConnected(!connected);
       } catch (error) {
-        // console.error('Error connecting to node:', error);
         messageRef.current?.addMessage(`Error connecting to ${selectedServer.description || selectedServer.ip}: ${error.message}`, 'error');
         return;
       }
