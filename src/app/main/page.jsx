@@ -168,6 +168,7 @@ export default function Home() {
               setConnected(true);
             } catch (error) {
               messageRef.current?.addMessage(`${i18next.t('Error reconnecting to')} ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}: ${error.message}. ${i18next.t('Please try to connect manually or switch to another node')}`, 'error');
+              setConnected(false);
             }
             break;
           }
@@ -271,6 +272,8 @@ export default function Home() {
     if (!connected) {
       try {
         const data = await connectToNode();
+
+        console.log('Connection data:', data);
 
         await invoke('launch_xray', {
           uuid: data.uuid,

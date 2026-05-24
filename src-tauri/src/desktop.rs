@@ -277,7 +277,7 @@ async fn launch_xray(
         enable: true,
         host: "127.0.0.1".into(),
         port: 1080,
-        bypass: "localhost,127.0.0.1/8".into(),
+        bypass: format!("localhost,127.0.0.1/8,{}", server),
     };
 
     sysproxy
