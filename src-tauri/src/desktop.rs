@@ -284,6 +284,21 @@ async fn launch_xray(
         .set_system_proxy()
         .expect("error setting system proxy");
 
+    #[cfg(target_os = "macos")]
+    {
+        // sysproxy crate sets SOCKS to the same port (1080) as HTTP.
+        // We must override the SOCKS proxy to port 1081 for common Mac interfaces.
+        use std::process::Command;
+        for service in ["Wi-Fi", "Ethernet"] {
+            let _ = Command::new("networksetup")
+                .args(["-setsocksfirewallproxy", service, "127.0.0.1", "1081"])
+                .output();
+            let _ = Command::new("networksetup")
+                .args(["-setsocksfirewallproxystate", service, "on"])
+                .output();
+        }
+    }
+
     let child_pid = child.id().to_string();
     let main_pid = std::process::id().to_string();
 
