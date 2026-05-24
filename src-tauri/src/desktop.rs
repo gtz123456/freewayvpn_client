@@ -177,7 +177,10 @@ async fn launch_xray(
         serde_json::from_reader(file).expect("error reading file");
 
     if let Some(vnext) = default_config["outbounds"][0]["settings"]["vnext"][0].as_object_mut() {
-        vnext.insert("address".to_string(), Value::String(server));
+        vnext.insert(
+            "address".to_string(),
+            Value::String(server.clone()),
+        );
         vnext.insert(
             "port".to_string(),
             Value::Number(
