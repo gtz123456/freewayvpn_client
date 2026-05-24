@@ -43,7 +43,7 @@ export default function Home() {
   const heartbeatFailsRef = useRef(0);
 
   const router = useRouter();
-  const server = 'http://146.235.210.34:8001';
+  const server = 'http://170.9.29.245:8080';
 
 
   const [ipv6checked, setIpv6Checked] = useState(false);

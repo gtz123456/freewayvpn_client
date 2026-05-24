@@ -22,7 +22,7 @@ export default function Home() {
 
   const router = useRouter();
 
-  const server = 'http://146.235.210.34';
+  const server = 'http://170.9.29.245';
 
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -31,7 +31,7 @@ export default function Home() {
 
   const handleCheckVersion = () => {
     // Check the version of the app
-    fetch(`${server}:8001/version?client-version=0.1.0`, {
+    fetch(`${server}:8080/version?client-version=0.1.0`, {
       method: 'GET',
       headers: {
       'Content-Type': 'application/json',
@@ -75,7 +75,7 @@ export default function Home() {
 
   function handleLogin() {
     // Send a POST request to the server, and get the jwt token in the response body
-    let loginURL = `${server}:8001/login`;
+    let loginURL = `${server}:8080/login`;
     fetch(loginURL, {
       method: 'POST',
       headers: {
@@ -103,7 +103,7 @@ export default function Home() {
   }
 
   function handleRegister() {
-    let registerURL = `${server}:8001/signup`;
+    let registerURL = `${server}:8080/signup`;
     fetch(registerURL, {
       method: 'POST',
       headers: {

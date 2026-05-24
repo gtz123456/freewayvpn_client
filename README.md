@@ -1,5 +1,9 @@
 # FreewayVPN Client
 
+update "url": "http://170.9.29.245:8080/*"
+
+# Dev
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) & [pnpm](https://pnpm.io/)
