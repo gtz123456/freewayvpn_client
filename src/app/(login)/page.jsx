@@ -16,6 +16,7 @@ export default function Home() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [isLogin, setIsLogin] = useState(true); // Controls whether it's login or register mode
 
   const messageRef = useRef();
@@ -109,7 +110,7 @@ export default function Home() {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ "Email": email, "Password": password }),
+      body: JSON.stringify({ "Email": email, "Password": password, "referral_code": referralCode }),
     })
       .then((res) => {
         if (res.ok) {
@@ -172,6 +173,17 @@ export default function Home() {
               className="mt-1 block w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-w-[275px]"
             />
           </div>
+          {!isLogin && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">{i18next.t('Referral Code (Optional)')}</label>
+              <input
+                type="text"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-w-[275px]"
+              />
+            </div>
+          )}
           <button
             type="submit"
             className="w-full py-2 px-4 bg-blue-400 text-white rounded-md hover:bg-blue-500 transition-colors disabled:opacity-50 max-w-[275px]"

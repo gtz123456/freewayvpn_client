@@ -53,5 +53,9 @@
   "Proceed to Pay": "Proceed to Pay",
   "Scan or click the QR code": "Scan or click the QR code to copy the payment address",
   "Fetching payment link...": "Fetching payment link...",
-  "Link copied to clipboard": "Link copied to clipboard"
+  "Link copied to clipboard": "Link copied to clipboard",
+  "Referral Code (Optional)": "Referral Code (Optional)",
+  "Invite Code": "Invite Code",
+  "Copied to clipboard": "Copied to clipboard",
+  "Copy code": "Copy code"
 }
