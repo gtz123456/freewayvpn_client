@@ -32,7 +32,7 @@ export default function Home() {
 
   const handleCheckVersion = () => {
     // Check the version of the app
-    fetch(`${server}:8080/version?client-version=0.1.0`, {
+    fetch(`${server}/version?client-version=0.1.0`, {
       method: 'GET',
       headers: {
       'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export default function Home() {
 
   function handleLogin() {
     // Send a POST request to the server, and get the jwt token in the response body
-    let loginURL = `${server}:8080/login`;
+    let loginURL = `${server}/login`;
     fetch(loginURL, {
       method: 'POST',
       headers: {
@@ -104,7 +104,7 @@ export default function Home() {
   }
 
   function handleRegister() {
-    let registerURL = `${server}:8080/signup`;
+    let registerURL = `${server}/signup`;
     fetch(registerURL, {
       method: 'POST',
       headers: {
