@@ -2,12 +2,12 @@
 
 use serde_json::Value;
 use std::net::TcpStream;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::{fs, io::Write};
 
 use sysproxy::Sysproxy;
 // use std::sync::Mutex;
-use tauri::{path::BaseDirectory, Manager, RunEvent};
+use tauri::{path::BaseDirectory, Emitter, Manager, RunEvent};
 
 use surge_ping::{Client, Config, PingIdentifier, PingSequence};
 
@@ -42,11 +42,14 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             launch_xray,
+            launch_xray_no_proxy,
+            kill_process,
             close_xray,
             check_ipv6,
             ping,
             get_xray_stats,
             get_system_language,
+            speed_test,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -155,15 +158,16 @@ fn cleanup() {
     }
 }
 
-#[tauri::command]
-async fn launch_xray(
-    handle: tauri::AppHandle,
-    uuid: String,
-    pubkey: String,
-    server: String,
-    port: String,
+/// Internal helper: write xray config and spawn the xray process.
+/// Returns the child PID as a String on success.
+/// Does NOT touch the system proxy — callers decide whether to set it.
+fn spawn_xray_process(
+    handle: &tauri::AppHandle,
+    uuid: &str,
+    pubkey: &str,
+    server: &str,
+    port: &str,
 ) -> String {
-    cleanup();
     let xray_json_path = handle
         .path()
         .resolve("resources/xray.json", BaseDirectory::Resource)
@@ -177,10 +181,7 @@ async fn launch_xray(
         serde_json::from_reader(file).expect("error reading file");
 
     if let Some(vnext) = default_config["outbounds"][0]["settings"]["vnext"][0].as_object_mut() {
-        vnext.insert(
-            "address".to_string(),
-            Value::String(server.clone()),
-        );
+        vnext.insert("address".to_string(), Value::String(server.to_string()));
         vnext.insert(
             "port".to_string(),
             Value::Number(
@@ -206,7 +207,6 @@ async fn launch_xray(
         .expect("error resolving config.json path");
 
     let mut file = fs::File::create(&config_path).expect("error creating file");
-
     println!("config_path: {:?}", config_path);
 
     file.write_all(
@@ -216,7 +216,7 @@ async fn launch_xray(
     )
     .expect("error writing to file");
 
-    // start xray process
+    // Resolve binary and resource paths
     let xray_bin = handle
         .path()
         .resolve("xray", BaseDirectory::Resource)
@@ -242,12 +242,11 @@ async fn launch_xray(
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
 
-    // print cmd
     println!("xray command: {:?}", cmd);
 
     let mut child = cmd.spawn().expect("Failed to spawn xray process");
 
-    // Simulate CommandEvent handling using std::thread and mpsc
+    // Forward stdout/stderr to the host console via background threads
     let (tx, _rx) = mpsc::channel();
 
     if let Some(stdout) = child.stdout.take() {
@@ -264,7 +263,6 @@ async fn launch_xray(
     }
 
     if let Some(stderr) = child.stderr.take() {
-        let tx = tx.clone();
         std::thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.split(b'\n') {
@@ -276,13 +274,17 @@ async fn launch_xray(
         });
     }
 
+    child.id().to_string()
+}
+
+/// Set the global system proxy to route through the local xray HTTP listener.
+fn set_system_proxy(server: &str) {
     let sysproxy = Sysproxy {
         enable: true,
         host: "127.0.0.1".into(),
         port: 1080,
         bypass: format!("localhost,127.0.0.1/8,{}", server),
     };
-
     sysproxy
         .set_system_proxy()
         .expect("error setting system proxy");
@@ -291,7 +293,6 @@ async fn launch_xray(
     {
         // sysproxy crate sets SOCKS to the same port (1080) as HTTP.
         // We must override the SOCKS proxy to port 1081 for common Mac interfaces.
-        use std::process::Command;
         for service in ["Wi-Fi", "Ethernet"] {
             let _ = Command::new("networksetup")
                 .args(["-setsocksfirewallproxy", service, "127.0.0.1", "1081"])
@@ -301,8 +302,23 @@ async fn launch_xray(
                 .output();
         }
     }
+}
 
-    let child_pid = child.id().to_string();
+/// Launch xray AND set the global system proxy (normal VPN connect flow).
+#[tauri::command]
+async fn launch_xray(
+    handle: tauri::AppHandle,
+    uuid: String,
+    pubkey: String,
+    server: String,
+    port: String,
+) -> String {
+    cleanup();
+
+    let child_pid = spawn_xray_process(&handle, &uuid, &pubkey, &server, &port);
+
+    set_system_proxy(&server);
+
     let main_pid = std::process::id().to_string();
 
     let cleanup_bin_path = handle
@@ -310,7 +326,7 @@ async fn launch_xray(
         .resolve("cleanup", BaseDirectory::Resource)
         .expect("error resolving cleanup binary path");
 
-    // run a command to shut down xray and then run cleanup_bin in case exit accidentally
+    // Watchdog: when this process exits unexpectedly, kill xray and run cleanup
     #[cfg(target_family = "unix")]
     {
         use tauri_plugin_shell::ShellExt;
@@ -326,14 +342,12 @@ async fn launch_xray(
             ))
             .spawn()
             .expect("Failed to spawn shutdown command");
-    } // TODO: not tested yet
+    }
 
     #[cfg(target_family = "windows")]
     {
         use std::os::windows::process::CommandExt;
-
         let mut cmd = Command::new("powershell.exe");
-
         cmd.arg("-Command")
             .arg(format!(
                 r#"
@@ -349,13 +363,51 @@ async fn launch_xray(
             ))
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-
         cmd.spawn().expect("Failed to spawn shutdown command");
     }
 
     child_pid
+}
+
+/// Launch xray WITHOUT setting the global system proxy.
+/// Used for speed testing — traffic goes through the local proxy port
+/// without affecting the rest of the system.
+/// Returns the child PID so the caller can stop it with `kill_process`.
+#[tauri::command]
+async fn launch_xray_no_proxy(
+    handle: tauri::AppHandle,
+    uuid: String,
+    pubkey: String,
+    server: String,
+    port: String,
+) -> String {
+    let child_pid = spawn_xray_process(&handle, &uuid, &pubkey, &server, &port);
+    child_pid
+}
+
+/// Kill a process by PID without touching the system proxy.
+/// Used to stop a temporary xray instance started by `launch_xray_no_proxy`.
+#[tauri::command]
+fn kill_process(pid: String) {
+    let pid = pid.trim().to_string();
+    println!("kill_process: killing PID {}", pid);
+
+    #[cfg(target_family = "unix")]
+    {
+        let _ = Command::new("kill")
+            .args(["-9", &pid])
+            .spawn();
+    }
+
+    #[cfg(target_family = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let _ = Command::new("taskkill")
+            .args(["/F", "/PID", &pid])
+            .creation_flags(0x08000000)
+            .spawn();
+    }
 }
 
 #[tauri::command]
@@ -545,4 +597,99 @@ async fn get_system_language() -> Option<String> {
                 lang.to_lowercase()
             })
     }
+}
+
+/// Speed test result emitted via Tauri event during the test
+#[derive(Clone, serde::Serialize)]
+struct SpeedTestProgress {
+    /// Bytes downloaded so far
+    downloaded: u64,
+    /// Total bytes expected (0 if unknown)
+    total: u64,
+    /// Current speed in bytes per second
+    speed_bps: f64,
+    /// Whether the test finished successfully
+    done: bool,
+    /// Error message if the test failed
+    error: Option<String>,
+}
+
+/// Run a speed test by downloading a file through the local SOCKS5 proxy.
+/// Progress is emitted as `speed-test-progress` events.
+#[tauri::command]
+async fn speed_test(window: tauri::WebviewWindow, proxy_port: u16) -> Result<(), String> {
+    use futures_util::StreamExt;
+
+    // Cloudflare speed test – 50 MB file (no auth required)
+    let url = "https://speed.cloudflare.com/__down?bytes=52428800";
+
+    let proxy = reqwest::Proxy::all(format!("socks5h://127.0.0.1:{}", proxy_port))
+        .map_err(|e| e.to_string())?;
+
+    let client = reqwest::Client::builder()
+        .proxy(proxy)
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+
+    let total = resp.content_length().unwrap_or(0);
+    let mut stream = resp.bytes_stream();
+
+    let mut downloaded: u64 = 0;
+    let start = Instant::now();
+    // Track the last time we emitted an event to throttle updates
+    let mut last_emit = Instant::now();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("Stream error: {}", e))?;
+        downloaded += chunk.len() as u64;
+
+        let elapsed = start.elapsed().as_secs_f64();
+        let speed_bps = if elapsed > 0.0 {
+            downloaded as f64 / elapsed
+        } else {
+            0.0
+        };
+
+        // Emit progress at most every 200 ms to avoid flooding the frontend
+        if last_emit.elapsed() >= Duration::from_millis(200) {
+            let _ = window.emit(
+                "speed-test-progress",
+                SpeedTestProgress {
+                    downloaded,
+                    total,
+                    speed_bps,
+                    done: false,
+                    error: None,
+                },
+            );
+            last_emit = Instant::now();
+        }
+    }
+
+    let elapsed = start.elapsed().as_secs_f64();
+    let final_speed = if elapsed > 0.0 {
+        downloaded as f64 / elapsed
+    } else {
+        0.0
+    };
+
+    let _ = window.emit(
+        "speed-test-progress",
+        SpeedTestProgress {
+            downloaded,
+            total,
+            speed_bps: final_speed,
+            done: true,
+            error: None,
+        },
+    );
+
+    Ok(())
 }

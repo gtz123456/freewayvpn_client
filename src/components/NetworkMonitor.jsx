@@ -1,107 +1,299 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-
-import '@/app/i18n'
+import '@/app/i18n';
 import i18next from 'i18next';
 
-const parseStats = (data) => {
-  const result = {
-    downlink: 0,
-    uplink: 0
-  };
+// ── Constants ──────────────────────────────────────────────
+const INTERVAL_MS = 3000;
+const HISTORY_LEN = 30;
 
-  data = JSON.parse(data);
-
-  if (!data || !data.stat) {
-    return result;
-  }
-
-  for (const item of data.stat) {
-    if (item.name === "outbound>>>proxy>>>traffic>>>downlink") {
-      result.downlink = item.value ?? 0;
-    } else if (item.name === "outbound>>>proxy>>>traffic>>>uplink") {
-      result.uplink = item.value ?? 0;
+// ── Helpers ────────────────────────────────────────────────
+const parseStats = (raw) => {
+  const result = { downlink: 0, uplink: 0 };
+  try {
+    const data = JSON.parse(raw);
+    if (!data?.stat) return result;
+    for (const item of data.stat) {
+      if (item.name === 'outbound>>>proxy>>>traffic>>>downlink') result.downlink = item.value ?? 0;
+      else if (item.name === 'outbound>>>proxy>>>traffic>>>uplink') result.uplink = item.value ?? 0;
     }
-  }
-
+  } catch (_) {}
   return result;
-}
+};
 
-const NetworkMonitor = ({ isConnected }) => {
-  const [speed, setSpeed] = useState({ downlink: 0, uplink: 0 });
-  const [prevStats, setPrevStats] = useState({ downlink: 0, uplink: 0 });
+/** Bytes/s → compact label, e.g. "12.3 Mb/s" */
+const fmt = (bps) => {
+  const n = parseFloat(bps) || 0;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(2)} Mb/s`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)} Kb/s`;
+  return `${Math.round(n)} b/s`;
+};
 
-  const interval = 3000;
+/** Shorter axis label — includes 'b' unit, e.g. "1Mb", "800Kb", "0b" */
+const fmtAxis = (bps) => {
+  const n = bps || 0;
+  if (n === 0) return '0b';
+  if (n >= 1e6) return `${Math.round(n / 1e6)}Mb`;
+  if (n >= 1e3) return `${Math.round(n / 1e3)}Kb`;
+  return `${Math.round(n)}b`;
+};
 
-  useEffect(() => {
-    const timer = setInterval(async () => {
-      try {
-        if (!isConnected) {
-          setSpeed({ downlink: 0, uplink: 0 });
-          setPrevStats({ downlink: 0, uplink: 0 });
-          return;
-        }
+// ── Combined chart with Y-axis (single SVG) ────────────────
+/**
+ * Renders both download + upload sparklines in one SVG, sharing a
+ * common Y scale, with a vertical axis on the left showing 3 ticks.
+ */
+function Chart({ dlHistory, ulHistory, dlColor, ulColor, height = 64 }) {
+  // Shared scale across both series
+  const maxVal = Math.max(...dlHistory, ...ulHistory, 1024);
 
-        const data = await invoke('get_xray_stats');
-        console.log('Raw xray stats data:', data);
+  // SVG internal coordinate system
+  const AXIS_W = 34;   // reserved width for Y-axis labels (left side)
+  const PAD_R = 4;     // right padding
+  const PAD_T = 6;     // top padding (so the top dot isn't clipped)
+  const PAD_B = 2;     // bottom padding
+  const TOTAL_W = 300; // total SVG internal width
+  const CHART_W = TOTAL_W - AXIS_W - PAD_R;
+  const CHART_H = height - PAD_T - PAD_B;
 
-        const newStats = parseStats(data);
+  // 3 evenly spaced Y ticks: top, mid, bottom
+  const ticks = [maxVal, maxVal / 2, 0];
 
-        console.log('Fetched xray stats:', newStats);
+  /** Map a bytes/s value to a Y coordinate within the chart area */
+  const toY = (v) => PAD_T + (1 - v / maxVal) * CHART_H;
 
-        const deltaDown = newStats.downlink - prevStats.downlink;
-        const deltaUp = newStats.uplink - prevStats.uplink;
+  /** Map a series to SVG points */
+  const toPoints = (series) =>
+    series.map((v, i) => [
+      AXIS_W + (i / (series.length - 1)) * CHART_W,
+      toY(v),
+    ]);
 
-        setSpeed({
-          downlink: (deltaDown / interval  * 8).toFixed(1),
-          uplink: (deltaUp / interval * 8).toFixed(1)
-        });
+  /** Build smooth cubic-bezier path from point array */
+  const buildPath = (pts) =>
+    pts.reduce((acc, [x, y], i) => {
+      if (i === 0) return `M ${x},${y}`;
+      const [px, py] = pts[i - 1];
+      const cx = (px + x) / 2;
+      return `${acc} C ${cx},${py} ${cx},${y} ${x},${y}`;
+    }, '');
 
-        setPrevStats(newStats);
-      } catch (error) {
-        console.error('Failed to get xray stats:', error);
-      }
-    }, interval);
+  const renderSeries = (series, color, gradId) => {
+    if (series.length < 2) return null;
+    const pts = toPoints(series);
+    const d = buildPath(pts);
+    const [fx] = pts[0];
+    const [lx] = pts[pts.length - 1];
+    const bottomY = PAD_T + CHART_H;
+    const area = `${d} L ${lx},${bottomY} L ${fx},${bottomY} Z`;
+    const [dotX, dotY] = pts[pts.length - 1];
 
-    return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, prevStats]);
-
-  const formatSpeed = (value) => {
-    const num = parseFloat(value);
-    if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)} Mb/s`;
-    }
-    return `${num} Kb/s`;
-  };
-
-  const formatTransfer = (value) => {
-    const num = parseFloat(value) / 1000; // convert to kB
-    if (num >= 1000 * 1000) {
-      return `${(num / (1000 * 1000)).toFixed(2)} GB`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)} MB`;
-    }
-    return `${num.toFixed(1)} kB`;
+    return (
+      <g key={gradId}>
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill={`url(#${gradId})`} />
+        <path d={d} fill="none" stroke={color} strokeWidth="1.8"
+          strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx={dotX} cy={dotY} r="2.5" fill={color} />
+      </g>
+    );
   };
 
   return (
-    <div className="w-[90%] max-w-xl mx-auto flex items-center gap-3 p-2 pl-3 rounded-xl bg-white/60 shadow-md mt-4">
-      <div className="flex w-full">
-        <div className="flex-1 flex flex-col items-center">
-          <div>{i18next.t('Speed')}</div>
-          <span className="text-sm text-gray-600 mt-1">{i18next.t('Download')}: {formatSpeed(speed.downlink)}</span>
-          <span className="text-sm text-gray-600 mt-1">{i18next.t('Upload')}: {formatSpeed(speed.uplink)}</span>
+    <svg
+      viewBox={`0 0 ${TOTAL_W} ${height}`}
+      preserveAspectRatio="none"
+      width="100%"
+      height={height}
+      style={{ display: 'block', overflow: 'visible' }}
+    >
+      {/* ── Y axis line ── */}
+      <line
+        x1={AXIS_W} y1={PAD_T}
+        x2={AXIS_W} y2={PAD_T + CHART_H}
+        stroke="rgba(0,0,0,0.12)"
+        strokeWidth="1"
+      />
+
+      {/* ── Ticks, grid lines and labels ── */}
+      {ticks.map((val, i) => {
+        const y = toY(val);
+        return (
+          <g key={i}>
+            {/* Horizontal dashed grid line */}
+            <line
+              x1={AXIS_W} y1={y}
+              x2={TOTAL_W - PAD_R} y2={y}
+              stroke="rgba(0,0,0,0.06)"
+              strokeWidth="1"
+              strokeDasharray={i === ticks.length - 1 ? 'none' : '3 3'}
+            />
+            {/* Tick mark */}
+            <line
+              x1={AXIS_W - 3} y1={y}
+              x2={AXIS_W} y2={y}
+              stroke="rgba(0,0,0,0.18)"
+              strokeWidth="1"
+            />
+            {/* Label — right-aligned just before the axis */}
+            <text
+              x={AXIS_W - 6}
+              y={y}
+              textAnchor="end"
+              dominantBaseline={
+                i === 0 ? 'hanging'    // top tick: hang below
+                : i === ticks.length - 1 ? 'auto'  // bottom tick: above
+                : 'middle'
+              }
+              fontSize="8"
+              fill="rgba(0,0,0,0.35)"
+              fontFamily="system-ui, sans-serif"
+            >
+              {fmtAxis(val)}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* ── Upload line (behind download) ── */}
+      {renderSeries(ulHistory, ulColor, 'grad-ul')}
+
+      {/* ── Download line (front) ── */}
+      {renderSeries(dlHistory, dlColor, 'grad-dl')}
+    </svg>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────
+const NetworkMonitor = ({ isConnected }) => {
+  const [speed, setSpeed] = useState({ downlink: 0, uplink: 0 });
+  const [dlHistory, setDlHistory] = useState(Array(HISTORY_LEN).fill(0));
+  const [ulHistory, setUlHistory] = useState(Array(HISTORY_LEN).fill(0));
+  const prevStatsRef = useRef({ downlink: 0, uplink: 0 });
+
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      if (!isConnected) {
+        setSpeed({ downlink: 0, uplink: 0 });
+        setDlHistory(Array(HISTORY_LEN).fill(0));
+        setUlHistory(Array(HISTORY_LEN).fill(0));
+        prevStatsRef.current = { downlink: 0, uplink: 0 };
+        return;
+      }
+      try {
+        const raw = await invoke('get_xray_stats');
+        const newStats = parseStats(raw);
+        const prev = prevStatsRef.current;
+        const dl = Math.max(0, (newStats.downlink - prev.downlink) / (INTERVAL_MS / 1000));
+        const ul = Math.max(0, (newStats.uplink - prev.uplink) / (INTERVAL_MS / 1000));
+        prevStatsRef.current = newStats;
+        setSpeed({ downlink: dl, uplink: ul });
+        setDlHistory((h) => [...h.slice(-(HISTORY_LEN - 1)), dl]);
+        setUlHistory((h) => [...h.slice(-(HISTORY_LEN - 1)), ul]);
+      } catch (e) {
+        console.error('NetworkMonitor:', e);
+      }
+    }, INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [isConnected]);
+
+  const dlColor = '#6366f1';
+  const ulColor = '#f59e0b';
+
+  return (
+    <div style={styles.card}>
+      {/* Header */}
+      <div style={styles.header}>
+        <div style={styles.labelGroup}>
+          <span style={{ ...styles.dot, background: dlColor }} />
+          <span style={styles.label}>{i18next.t('Download')}</span>
+          <span style={{ ...styles.value, color: dlColor }}>{fmt(speed.downlink)}</span>
         </div>
-        <div className="w-px bg-gray-300 mx-4" style={{ minHeight: '48px' }} />
-        <div className="flex-1 flex flex-col items-center">
-          <div>{i18next.t('Transfer')}</div>
-          <span className="text-sm text-gray-600 mt-1">{i18next.t('Download')}: {formatTransfer(prevStats.downlink)}</span>
-          <span className="text-sm text-gray-600 mt-1">{i18next.t('Upload')}: {formatTransfer(prevStats.uplink)}</span>
+        <div style={styles.labelGroup}>
+          <span style={{ ...styles.dot, background: ulColor }} />
+          <span style={styles.label}>{i18next.t('Upload')}</span>
+          <span style={{ ...styles.value, color: ulColor }}>{fmt(speed.uplink)}</span>
         </div>
+      </div>
+
+      {/* Chart */}
+      <div style={styles.chartWrap}>
+        <Chart
+          dlHistory={dlHistory}
+          ulHistory={ulHistory}
+          dlColor={dlColor}
+          ulColor={ulColor}
+          height={64}
+        />
       </div>
     </div>
   );
+};
+
+// ── Styles ─────────────────────────────────────────────────
+const styles = {
+  card: {
+    width: '90%',
+    maxWidth: 448,
+    margin: '12px auto 0',
+    borderRadius: 14,
+    background: 'rgba(255,255,255,0.60)',
+    boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
+    backdropFilter: 'blur(6px)',
+    padding: '10px 14px 8px',
+    overflow: 'hidden',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  labelGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    flexShrink: 0,
+  },
+  label: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: 500,
+  },
+  value: {
+    fontSize: 13,
+    fontWeight: 700,
+    fontVariantNumeric: 'tabular-nums',
+    minWidth: 72,
+    textAlign: 'right',
+  },
+  chartWrap: {
+    position: 'relative',
+  },
+  overlay: {
+    position: 'absolute',
+    inset: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(255,255,255,0.55)',
+    borderRadius: 8,
+  },
+  overlayText: {
+    fontSize: 11,
+    color: '#9ca3af',
+    fontStyle: 'italic',
+  },
 };
 
 export default NetworkMonitor;

@@ -34,7 +34,7 @@
   "Speed": "实时速度",
   "Download": "下载",
   "Upload": "上传",
-  "Transfer": "流量统计",
+  "Connect to see live speed": "连接后显示实时速度",
 
   "Connect": "连接",
   "Disconnect": "断开",
@@ -59,5 +59,20 @@
   "Referral Code (Optional)": "邀请码 (选填)",
   "Invite Code": "邀请码",
   "Copied to clipboard": "已复制到剪贴板",
-  "Copy code": "复制邀请码"
+  "Copy code": "复制邀请码",
+
+  "Speed Test": "测速",
+  "VPN on – test uses proxy port": "VPN已连接 – 测速将使用代理端口",
+  "Test speed via": "测速节点：",
+  "Select a server first": "请先选择节点",
+  "Starting xray…": "正在启动代理…",
+  "Downloading via port": "正在通过端口下载",
+  "Final speed": "最终速度",
+  "Test failed": "测速失败",
+  "Connecting…": "连接中…",
+  "Testing…": "测速中…",
+  "Retest": "重新测速",
+  "Start Test": "开始测速",
+  "No server selected": "未选择节点",
+  "Test Speed": "测试速度"
 }

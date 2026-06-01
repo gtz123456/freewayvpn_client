@@ -208,8 +208,12 @@ export default function Home() {
     return await response.json();
   }
 
-  async function connectToNode() {
-    const response = await authFetch(server + '/connect?serviceid=' + filteredServers[selectedServerIndex].serviceid, {
+  async function connectToNode(serverIndex = selectedServerIndex) {
+    const targetServer = filteredServers[serverIndex];
+    if (!targetServer) {
+      throw new Error('Server not found at index ' + serverIndex);
+    }
+    const response = await authFetch(server + '/connect?serviceid=' + targetServer.serviceid, {
       method: 'POST',
     });
 
@@ -329,6 +333,7 @@ export default function Home() {
         selectedServerIndex={selectedServerIndex}
         setSelectedServerIndex={setSelectedServerIndex}
         connected={connected}
+        connectToNode={connectToNode}
       />
       <NetworkMonitor isConnected={connected} />
       <div className="flex items-center gap-4">

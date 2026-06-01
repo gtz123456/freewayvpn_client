@@ -33,7 +33,7 @@
   "Speed": "Speed",
   "Download": "Download",
   "Upload": "Upload",
-  "Transfer": "Transfer",
+  "Connect to see live speed": "Connect to see live speed",
 
   "Connect": "Connect",
   "Disconnect": "Disconnect",
@@ -57,5 +57,20 @@
   "Referral Code (Optional)": "Referral Code (Optional)",
   "Invite Code": "Invite Code",
   "Copied to clipboard": "Copied to clipboard",
-  "Copy code": "Copy code"
+  "Copy code": "Copy code",
+
+  "Speed Test": "Speed Test",
+  "VPN on – test uses proxy port": "VPN on – test uses proxy port",
+  "Test speed via": "Test speed via",
+  "Select a server first": "Select a server first",
+  "Starting xray…": "Starting xray…",
+  "Downloading via port": "Downloading via port",
+  "Final speed": "Final speed",
+  "Test failed": "Test failed",
+  "Connecting…": "Connecting…",
+  "Testing…": "Testing…",
+  "Retest": "Retest",
+  "Start Test": "Start Test",
+  "No server selected": "No server selected",
+  "Test Speed": "Test Speed"
 }
