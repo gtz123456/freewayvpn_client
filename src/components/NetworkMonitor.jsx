@@ -44,6 +44,22 @@ const fmtAxis = (bps) => {
  * common Y scale, with a vertical axis on the left showing 3 ticks.
  */
 function Chart({ dlHistory, ulHistory, dlColor, ulColor, height = 64 }) {
+  const containerRef = useRef(null);
+  const [width, setWidth] = useState(300); // default before measure
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setWidth(entry.contentRect.width);
+        }
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   // Shared scale across both series
   const maxVal = Math.max(...dlHistory, ...ulHistory, 1024);
 
@@ -52,8 +68,8 @@ function Chart({ dlHistory, ulHistory, dlColor, ulColor, height = 64 }) {
   const PAD_R = 4;     // right padding
   const PAD_T = 6;     // top padding (so the top dot isn't clipped)
   const PAD_B = 2;     // bottom padding
-  const TOTAL_W = 300; // total SVG internal width
-  const CHART_W = TOTAL_W - AXIS_W - PAD_R;
+  const TOTAL_W = width; // dynamic width
+  const CHART_W = Math.max(10, TOTAL_W - AXIS_W - PAD_R);
   const CHART_H = height - PAD_T - PAD_B;
 
   // 3 evenly spaced Y ticks: top, mid, bottom
@@ -105,14 +121,13 @@ function Chart({ dlHistory, ulHistory, dlColor, ulColor, height = 64 }) {
   };
 
   return (
-    <svg
-      viewBox={`0 0 ${TOTAL_W} ${height}`}
-      preserveAspectRatio="none"
-      width="100%"
-      height={height}
-      style={{ display: 'block', overflow: 'visible' }}
-    >
-      {/* ── Y axis line ── */}
+    <div ref={containerRef} style={{ width: '100%', height }}>
+      <svg
+        width="100%"
+        height="100%"
+        style={{ display: 'block', overflow: 'visible' }}
+      >
+        {/* ── Y axis line ── */}
       <line
         x1={AXIS_W} y1={PAD_T}
         x2={AXIS_W} y2={PAD_T + CHART_H}
@@ -165,7 +180,8 @@ function Chart({ dlHistory, ulHistory, dlColor, ulColor, height = 64 }) {
 
       {/* ── Download line (front) ── */}
       {renderSeries(dlHistory, dlColor, 'grad-dl')}
-    </svg>
+      </svg>
+    </div>
   );
 }
 

@@ -75,7 +75,7 @@ export default function Home() {
 
 
   useEffect(() => {
-    if (ipv6Enabled && filteredServers && filteredServers[selectedServerIndex] && filteredServers[selectedServerIndex].ipv6) {
+    if (ipv6Enabled && filteredServers && filteredServers[selectedServerIndex] && filteredServers[selectedServerIndex].ipv6 && filteredServers[selectedServerIndex].ipv6.includes(':')) {
       setIpv6Disabled(false);
     }
     else {
@@ -169,7 +169,7 @@ export default function Home() {
               await invoke('launch_xray', {
                 uuid: data.uuid,
                 pubkey: data.pubkey,
-                server: ipv6checked && filteredServers[selectedServerIndex].ipv6 ? filteredServers[selectedServerIndex].ipv6 : filteredServers[selectedServerIndex].ip,
+                server: ipv6checked && filteredServers[selectedServerIndex].ipv6 && filteredServers[selectedServerIndex].ipv6.includes(':') ? filteredServers[selectedServerIndex].ipv6 : filteredServers[selectedServerIndex].ip,
                 port: data.port,
               }).then((xraypid) => {
                 pid = xraypid;
@@ -292,7 +292,7 @@ export default function Home() {
         await invoke('launch_xray', {
           uuid: data.uuid,
           pubkey: data.pubkey,
-          server: ipv6checked && selectedServer.ipv6 ? selectedServer.ipv6 : selectedServer.ip,
+          server: ipv6checked && selectedServer.ipv6 && selectedServer.ipv6.includes(':') ? selectedServer.ipv6 : selectedServer.ip,
           port: data.port,
         }).then((xraypid) => {
           pid = xraypid;
