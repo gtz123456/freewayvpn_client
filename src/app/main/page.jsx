@@ -59,12 +59,12 @@ export default function Home() {
   const [settings, setSettings] = useState({
     adGuard: true,
     loadBalancing: false,
-    filterTag: 'All',
+    filterTags: [],
   });
 
   const filteredServers = servers.filter(s => {
-    if (!settings.filterTag || settings.filterTag === 'All') return true;
-    return s.tags && s.tags.includes(settings.filterTag);
+    if (!settings.filterTags || settings.filterTags.length === 0) return true;
+    return settings.filterTags.every(tag => s.tags && s.tags.includes(tag));
   });
 
   useEffect(() => {

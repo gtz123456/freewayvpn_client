@@ -171,16 +171,27 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef, servers = [] })
                 <div className="border-t border-gray-200 my-3"></div>
 
                 <h3 className="text-sm text-gray-500 mb-2">{i18next.t('Filter')}:</h3>
-                <select 
-                  value={settings.filterTag} 
-                  onChange={(e) => setSettings(prev => ({ ...prev, filterTag: e.target.value }))}
-                  className="p-2 mb-2 rounded border w-full text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                >
-                  <option value="All">{i18next.t('All Nodes')}</option>
+                <div className="max-h-40 overflow-y-auto border rounded p-2 mb-2 flex flex-col gap-1">
                   {availableTags.map(tag => (
-                    <option key={tag} value={tag}>{tag}</option>
+                    <label key={tag} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.filterTags?.includes(tag) || false}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSettings(prev => {
+                            const prevTags = prev.filterTags || [];
+                            const newTags = checked ? [...prevTags, tag] : prevTags.filter(t => t !== tag);
+                            return { ...prev, filterTags: newTags };
+                          });
+                        }}
+                        className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">{tag}</span>
+                    </label>
                   ))}
-                </select>
+                  {availableTags.length === 0 && <span className="text-xs text-gray-400">No tags available</span>}
+                </div>
                 <button
                   className="mt-2 px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors"
                   onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('auth_email'); localStorage.removeItem('auth_password'); router.push('/'); }}
