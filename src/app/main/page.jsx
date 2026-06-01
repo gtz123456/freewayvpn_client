@@ -59,20 +59,30 @@ export default function Home() {
   const [settings, setSettings] = useState({
     adGuard: true,
     loadBalancing: false,
-    filterNetflix: false,
-    filterChatGPT: true,
+    filterTag: 'All',
   });
+
+  const filteredServers = servers.filter(s => {
+    if (!settings.filterTag || settings.filterTag === 'All') return true;
+    return s.tags && s.tags.includes(settings.filterTag);
+  });
+
+  useEffect(() => {
+    if (filteredServers.length > 0 && selectedServerIndex >= filteredServers.length) {
+      setSelectedServerIndex(0);
+    }
+  }, [filteredServers.length, selectedServerIndex]);
 
 
   useEffect(() => {
-    if (ipv6Enabled && servers && servers[selectedServerIndex] && servers[selectedServerIndex].ipv6) {
+    if (ipv6Enabled && filteredServers && filteredServers[selectedServerIndex] && filteredServers[selectedServerIndex].ipv6) {
       setIpv6Disabled(false);
     }
     else {
       setIpv6Disabled(true);
       setIpv6Checked(false);
     }
-  }, [servers, selectedServerIndex]);
+  }, [filteredServers, selectedServerIndex]);
 
   useEffect(() => {
     let unlisten;
@@ -159,15 +169,15 @@ export default function Home() {
               await invoke('launch_xray', {
                 uuid: data.uuid,
                 pubkey: data.pubkey,
-                server: ipv6checked && servers[selectedServerIndex].ipv6 ? servers[selectedServerIndex].ipv6 : servers[selectedServerIndex].ip,
+                server: ipv6checked && filteredServers[selectedServerIndex].ipv6 ? filteredServers[selectedServerIndex].ipv6 : filteredServers[selectedServerIndex].ip,
                 port: data.port,
               }).then((xraypid) => {
                 pid = xraypid;
               });
-              messageRef.current?.addMessage(`${i18next.t('Reconnected to')} ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}`, 'success');
+              messageRef.current?.addMessage(`${i18next.t('Reconnected to')} ${filteredServers[selectedServerIndex].description || filteredServers[selectedServerIndex].ip}`, 'success');
               setConnected(true);
             } catch (error) {
-              messageRef.current?.addMessage(`${i18next.t('Error reconnecting to')} ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}: ${error.message}. ${i18next.t('Please try to connect manually or switch to another node')}`, 'error');
+              messageRef.current?.addMessage(`${i18next.t('Error reconnecting to')} ${filteredServers[selectedServerIndex].description || filteredServers[selectedServerIndex].ip}: ${error.message}. ${i18next.t('Please try to connect manually or switch to another node')}`, 'error');
               setConnected(false);
             }
             break;
@@ -199,7 +209,7 @@ export default function Home() {
   }
 
   async function connectToNode() {
-    const response = await authFetch(server + '/connect?serviceid=' + servers[selectedServerIndex].serviceid, {
+    const response = await authFetch(server + '/connect?serviceid=' + filteredServers[selectedServerIndex].serviceid, {
       method: 'POST',
     });
 
@@ -228,7 +238,7 @@ export default function Home() {
   }
 
   async function sendHeartbeat() {
-    let serviceID = servers[selectedServerIndex].serviceid;
+    let serviceID = filteredServers[selectedServerIndex]?.serviceid;
     if (!server) {
       return Promise.reject(new Error('No server selected'));
     }
@@ -257,7 +267,7 @@ export default function Home() {
 
   // handle connect/disconnect
   const handleClick = async () => {
-    const selectedServer = servers[selectedServerIndex];
+    const selectedServer = filteredServers[selectedServerIndex];
 
     if (!selectedServer) {
       messageRef.current?.addMessage('No server selected', 'error');
@@ -313,9 +323,9 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center h-screen gap-4 relative bg-white/20 pt-8 dark:text-gray-700">
-      <UserInfoCard user={user} settings={settings} setSettings={setSettings} messageRef={messageRef} />
+      <UserInfoCard user={user} settings={settings} setSettings={setSettings} messageRef={messageRef} servers={servers} />
       <NodeSelector
-        servers={servers}
+        servers={filteredServers}
         selectedServerIndex={selectedServerIndex}
         setSelectedServerIndex={setSelectedServerIndex}
         connected={connected}

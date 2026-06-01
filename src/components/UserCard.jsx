@@ -19,20 +19,8 @@ const ToggleSwitch = ({ label, isEnabled, onToggle }) => (
   </div>
 );
 
-// Helper component for the filter checkbox
-const FilterCheckbox = ({ label, isChecked, onToggle }) => (
-    <label className="flex items-center space-x-3 py-1.5 cursor-pointer">
-        <input 
-            type="checkbox" 
-            checked={isChecked} 
-            onChange={onToggle}
-            className="h-5 w-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-        />
-        <span className="text-gray-800">{label}</span>
-    </label>
-);
 
-const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
+const UserInfoCard = ({ user, settings, setSettings, messageRef, servers = [] }) => {
   const { lang, setLanguage } = useContext(I18nContext);
 
   // null = all closed, 'subscribe' = subscribe open, 'settings' = settings open
@@ -68,6 +56,8 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
         [settingName]: !prev[settingName]
     }));
   };
+
+  const availableTags = Array.from(new Set(servers.flatMap(s => s.tags || []))).sort();
 
   return (
     <div className="w-[90%] max-w-xl mx-auto flex items-center gap-3 p-2 pl-3 rounded-xl bg-white/60 shadow-md">
@@ -181,8 +171,16 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
                 <div className="border-t border-gray-200 my-3"></div>
 
                 <h3 className="text-sm text-gray-500 mb-2">{i18next.t('Filter')}:</h3>
-                <FilterCheckbox label="NetFlix" isChecked={settings.filterNetflix} onToggle={() => handleSettingChange('filterNetflix')} />
-                <FilterCheckbox label="ChatGPT" isChecked={settings.filterChatGPT} onToggle={() => handleSettingChange('filterChatGPT')} />
+                <select 
+                  value={settings.filterTag} 
+                  onChange={(e) => setSettings(prev => ({ ...prev, filterTag: e.target.value }))}
+                  className="p-2 mb-2 rounded border w-full text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                >
+                  <option value="All">{i18next.t('All Nodes')}</option>
+                  {availableTags.map(tag => (
+                    <option key={tag} value={tag}>{tag}</option>
+                  ))}
+                </select>
                 <button
                   className="mt-2 px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors"
                   onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('auth_email'); localStorage.removeItem('auth_password'); router.push('/'); }}
