@@ -20,7 +20,7 @@ const Subscribe = ({ messageRef, user }) => {
   const [actualAmount, setActualAmount] = useState(0);
   const [voucherCode, setVoucherCode] = useState('');
 
-  const server = 'http://146.235.210.34:8001';
+  const server = 'http://170.9.29.245';
 
   const handleSubscribe = async () => {
     const token = localStorage.getItem('token');
