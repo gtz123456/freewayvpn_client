@@ -39,7 +39,7 @@ const NodeSelector = ({
     return "bg-red-500";
   };
 
-  const { activeTestIndex, status, progress, speed, errorMsg, startTest } = useSpeedTest({ connectToNode });
+  const { activeTestIndex, status, progress, speed, errorMsg, results, startTest } = useSpeedTest({ connectToNode });
 
   const handleSelect = (index) => {
     setSelectedServerIndex(index);
@@ -174,15 +174,22 @@ const NodeSelector = ({
                       {status === 'error' && <span className="text-red-500" title={errorMsg}>Fail</span>}
                     </div>
                   ) : (
-                    <button 
-                      className="text-gray-400 hover:text-blue-500 p-1.5 rounded-md bg-gray-50 hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-colors"
-                      title={i18next.t('Test Speed')}
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 14l4-4" />
-                        <path d="M3.34 16A10 10 0 1 1 20.66 16" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-2 group/btn">
+                      {results[s.service_id || s.ip || index] && (
+                        <span className="text-xs text-green-600/70 font-medium w-16 text-right truncate">
+                          {formatSpeed(results[s.service_id || s.ip || index].speed)}
+                        </span>
+                      )}
+                      <button 
+                        className="text-gray-400 hover:text-blue-500 p-1.5 rounded-md bg-gray-50 group-hover/btn:bg-blue-50 border border-transparent group-hover/btn:border-blue-100 transition-colors"
+                        title={i18next.t('Test Speed')}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 14l4-4" />
+                          <path d="M3.34 16A10 10 0 1 1 20.66 16" />
+                        </svg>
+                      </button>
+                    </div>
                   )}
                 </div>
 

@@ -36,11 +36,15 @@ export function useSpeedTest({ connectToNode, proxyPort = 1081 }) {
   // Cleanup on unmount
   useEffect(() => () => { cleanup(); }, [cleanup]);
 
+  const [results, setResults] = useState({});
+
   const startTest = async (serverIndex, serverObj) => {
     if (isTestingRef.current) {
       // Clean up previous test if one is running
       await cleanup();
     }
+
+    const nodeKey = serverObj.service_id || serverObj.ip || serverIndex;
 
     isTestingRef.current = true;
     setActiveTestIndex(serverIndex);
@@ -105,6 +109,7 @@ export function useSpeedTest({ connectToNode, proxyPort = 1081 }) {
         if (done) {
           setSpeed(speed_bps); // final exact speed
           setStatus('done');
+          setResults(prev => ({ ...prev, [nodeKey]: { speed: speed_bps } }));
           cleanup();
         }
       });
@@ -133,6 +138,7 @@ export function useSpeedTest({ connectToNode, proxyPort = 1081 }) {
     progress,
     speed,
     errorMsg,
+    results,
     startTest,
     cancelTest,
   };
