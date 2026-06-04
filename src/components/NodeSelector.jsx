@@ -39,7 +39,7 @@ const NodeSelector = ({
     return "bg-red-500";
   };
 
-  const { activeTestIndex, status, progress, speed, errorMsg, results, startTest } = useSpeedTest({ connectToNode });
+  const { activeTestIndex, status, progress, speed, errorMsg, results, queue, enqueueTest } = useSpeedTest({ connectToNode });
 
   const handleSelect = (index) => {
     setSelectedServerIndex(index);
@@ -163,7 +163,7 @@ const NodeSelector = ({
                   className="flex items-center"
                   onClick={(e) => {
                     e.stopPropagation(); // prevent row selection
-                    startTest(index, s);
+                    enqueueTest(index, s);
                   }}
                 >
                   {isTesting ? (
@@ -173,6 +173,8 @@ const NodeSelector = ({
                       {status === 'done' && <span className="text-green-600 font-medium">{formatSpeed(speed)}</span>}
                       {status === 'error' && <span className="text-red-500" title={errorMsg}>Fail</span>}
                     </div>
+                  ) : queue.some(t => t.serverIndex === index) ? (
+                    <div className="text-xs w-16 text-right text-yellow-600/80 font-medium animate-pulse">Waiting</div>
                   ) : results[s.service_id || s.ip || index] ? (
                     <div 
                       className="text-xs text-green-600/80 hover:text-green-600 font-medium w-16 text-right truncate cursor-pointer transition-colors"

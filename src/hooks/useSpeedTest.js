@@ -37,12 +37,26 @@ export function useSpeedTest({ connectToNode, proxyPort = 1081 }) {
   useEffect(() => () => { cleanup(); }, [cleanup]);
 
   const [results, setResults] = useState({});
+  const [queue, setQueue] = useState([]);
 
-  const startTest = async (serverIndex, serverObj) => {
-    if (isTestingRef.current) {
-      // Clean up previous test if one is running
-      await cleanup();
+  // Processing the queue
+  useEffect(() => {
+    if (!isTestingRef.current && queue.length > 0) {
+      const nextTest = queue[0];
+      setQueue((prev) => prev.slice(1));
+      runTest(nextTest.serverIndex, nextTest.serverObj);
     }
+  }, [queue, activeTestIndex]); // activeTestIndex will become null when a test finishes
+
+  const enqueueTest = (serverIndex, serverObj) => {
+    // Ignore if already testing this node or if it's already in the queue
+    if (activeTestIndex === serverIndex || queue.some((t) => t.serverIndex === serverIndex)) {
+      return;
+    }
+    setQueue((prev) => [...prev, { serverIndex, serverObj }]);
+  };
+
+  const runTest = async (serverIndex, serverObj) => {
 
     const nodeKey = serverObj.service_id || serverObj.ip || serverIndex;
 
@@ -111,6 +125,7 @@ export function useSpeedTest({ connectToNode, proxyPort = 1081 }) {
           setStatus('done');
           setResults(prev => ({ ...prev, [nodeKey]: { speed: speed_bps } }));
           cleanup();
+          setActiveTestIndex(null); // trigger next in queue
         }
       });
       unlistenRef.current = unlisten;
@@ -123,6 +138,7 @@ export function useSpeedTest({ connectToNode, proxyPort = 1081 }) {
       setStatus('error');
       setErrorMsg(String(err));
       await cleanup();
+      setActiveTestIndex(null); // trigger next in queue
     }
   };
 
@@ -139,7 +155,8 @@ export function useSpeedTest({ connectToNode, proxyPort = 1081 }) {
     speed,
     errorMsg,
     results,
-    startTest,
+    queue,
+    enqueueTest,
     cancelTest,
   };
 }
