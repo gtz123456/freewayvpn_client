@@ -106,7 +106,9 @@ export function useSpeedTest({ connectToNode, proxyPort = 1081 }) {
         if (error) {
           setStatus('error');
           setErrorMsg(error);
+          setResults(prev => ({ ...prev, [nodeKey]: { error: true, errorMsg: error } }));
           cleanup();
+          setActiveTestIndex(null);
           return;
         }
 
@@ -137,6 +139,7 @@ export function useSpeedTest({ connectToNode, proxyPort = 1081 }) {
       if (!isTestingRef.current) return; // Ignore errors if we intentionally aborted
       setStatus('error');
       setErrorMsg(String(err));
+      setResults(prev => ({ ...prev, [nodeKey]: { error: true, errorMsg: String(err) } }));
       await cleanup();
       setActiveTestIndex(null); // trigger next in queue
     }

@@ -176,12 +176,21 @@ const NodeSelector = ({
                   ) : queue.some(t => t.serverIndex === index) ? (
                     <div className="text-xs w-16 text-right text-yellow-600/80 font-medium animate-pulse">Waiting</div>
                   ) : results[s.service_id || s.ip || index] ? (
-                    <div 
-                      className="text-xs text-green-600/80 hover:text-green-600 font-medium w-16 text-right truncate cursor-pointer transition-colors"
-                      title={i18next.t('Test Speed')}
-                    >
-                      {formatSpeed(results[s.service_id || s.ip || index].speed)}
-                    </div>
+                    results[s.service_id || s.ip || index].error ? (
+                      <div 
+                        className="text-xs text-red-500 font-medium w-16 text-right truncate cursor-pointer hover:text-red-600 transition-colors"
+                        title={results[s.service_id || s.ip || index].errorMsg}
+                      >
+                        Fail
+                      </div>
+                    ) : (
+                      <div 
+                        className="text-xs text-green-600/80 hover:text-green-600 font-medium w-16 text-right truncate cursor-pointer transition-colors"
+                        title={i18next.t('Test Speed')}
+                      >
+                        {formatSpeed(results[s.service_id || s.ip || index].speed)}
+                      </div>
+                    )
                   ) : (
                     <button 
                       className="text-gray-400 hover:text-blue-500 p-1.5 rounded-md bg-gray-50 hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-colors"
