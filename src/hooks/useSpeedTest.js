@@ -53,7 +53,13 @@ export function useSpeedTest({ connectToNode, proxyPort = 1081 }) {
     if (activeTestIndex === serverIndex || queue.some((t) => t.serverIndex === serverIndex)) {
       return;
     }
-    setQueue((prev) => [...prev, { serverIndex, serverObj }]);
+    
+    if (!isTestingRef.current) {
+      // Start immediately to avoid flashing the "Waiting" state
+      runTest(serverIndex, serverObj);
+    } else {
+      setQueue((prev) => [...prev, { serverIndex, serverObj }]);
+    }
   };
 
   const runTest = async (serverIndex, serverObj) => {
