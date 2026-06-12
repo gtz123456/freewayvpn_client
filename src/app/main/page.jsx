@@ -5,6 +5,8 @@ import i18next from 'i18next';
 import { I18nContext } from '@/app/i18n';
 
 import { fetch } from '@tauri-apps/plugin-http';
+import { authFetch } from '@/utils/authFetch';
+import { listen } from '@tauri-apps/api/event';
 
 import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
@@ -18,6 +20,8 @@ import Tooltip from "@/components/Tooltip";
 import UserInfoCard from '@/components/UserCard';
 import NodeSelector from '@/components/NodeSelector';
 import NetworkMonitor from '@/components/NetworkMonitor';
+
+import WifiToggleButton from '@/components/WifiToggleButton';
 
 
 let pid;
@@ -39,7 +43,7 @@ export default function Home() {
   const heartbeatFailsRef = useRef(0);
 
   const router = useRouter();
-  const server = 'http://146.235.210.34:8001';
+  const server = 'http://170.9.29.245';
 
 
   const [ipv6checked, setIpv6Checked] = useState(false);
@@ -55,20 +59,40 @@ export default function Home() {
   const [settings, setSettings] = useState({
     adGuard: true,
     loadBalancing: false,
-    filterNetflix: false,
-    filterChatGPT: true,
+    filterTags: [],
   });
+
+  const filteredServers = servers.filter(s => {
+    if (!settings.filterTags || settings.filterTags.length === 0) return true;
+    return settings.filterTags.every(tag => s.tags && s.tags.includes(tag));
+  });
+
+  useEffect(() => {
+    if (filteredServers.length > 0 && selectedServerIndex >= filteredServers.length) {
+      setSelectedServerIndex(0);
+    }
+  }, [filteredServers.length, selectedServerIndex]);
 
 
   useEffect(() => {
-    if (ipv6Enabled && servers && servers[selectedServerIndex] && servers[selectedServerIndex].ipv6) {
+    if (ipv6Enabled && filteredServers && filteredServers[selectedServerIndex] && filteredServers[selectedServerIndex].ipv6 && filteredServers[selectedServerIndex].ipv6.includes(':')) {
       setIpv6Disabled(false);
     }
     else {
       setIpv6Disabled(true);
       setIpv6Checked(false);
     }
-  }, [servers, selectedServerIndex]);
+  }, [filteredServers, selectedServerIndex]);
+
+  useEffect(() => {
+    let unlisten;
+    listen('vpn-log', (event) => {
+      const { msg, type } = event.payload;
+      const duration = type === 'error' ? 5000 : 3000;
+      messageRef.current?.addMessage(msg, type ?? 'info', duration);
+    }).then((fn) => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -145,15 +169,16 @@ export default function Home() {
               await invoke('launch_xray', {
                 uuid: data.uuid,
                 pubkey: data.pubkey,
-                server: ipv6checked && servers[selectedServerIndex].ipv6 ? servers[selectedServerIndex].ipv6 : servers[selectedServerIndex].ip,
+                server: ipv6checked && filteredServers[selectedServerIndex].ipv6 && filteredServers[selectedServerIndex].ipv6.includes(':') ? filteredServers[selectedServerIndex].ipv6 : filteredServers[selectedServerIndex].ip,
                 port: data.port,
               }).then((xraypid) => {
                 pid = xraypid;
               });
-              messageRef.current?.addMessage(`${i18next.t('Reconnected to')} ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}`, 'success');
+              messageRef.current?.addMessage(`${i18next.t('Reconnected to')} ${filteredServers[selectedServerIndex].description || filteredServers[selectedServerIndex].ip}`, 'success');
               setConnected(true);
             } catch (error) {
-              messageRef.current?.addMessage(`${i18next.t('Error reconnecting to')} ${servers[selectedServerIndex].description || servers[selectedServerIndex].ip}: ${error.message}. ${i18next.t('Please try to connect manually or switch to another node')}`, 'error');
+              messageRef.current?.addMessage(`${i18next.t('Error reconnecting to')} ${filteredServers[selectedServerIndex].description || filteredServers[selectedServerIndex].ip}: ${error.message}. ${i18next.t('Please try to connect manually or switch to another node')}`, 'error');
+              setConnected(false);
             }
             break;
           }
@@ -174,10 +199,8 @@ export default function Home() {
   }, [connected]);
 
   async function getUser() {
-    const token = localStorage.getItem('token');
-    const response = await fetch(server + '/user', {
+    const response = await authFetch(server + '/user', {
       method: 'GET',
-      headers: { 'Authorization': token },
     });
     if (!response.ok) {
       throw new Error('Failed to fetch user data');
@@ -185,11 +208,13 @@ export default function Home() {
     return await response.json();
   }
 
-  async function connectToNode() {
-    const token = localStorage.getItem('token');
-    const response = await fetch(server + '/connect?serviceid=' + servers[selectedServerIndex].serviceid, {
+  async function connectToNode(serverIndex = selectedServerIndex) {
+    const targetServer = filteredServers[serverIndex];
+    if (!targetServer) {
+      throw new Error('Server not found at index ' + serverIndex);
+    }
+    const response = await authFetch(server + '/connect?serviceid=' + targetServer.serviceid, {
       method: 'POST',
-      headers: { 'Authorization': token },
     });
 
     if (!response.ok) {
@@ -210,28 +235,24 @@ export default function Home() {
   }
 
   async function getServers() {
-    const token = localStorage.getItem('token');
-    const response = await fetch(server + '/servers', {
+    const response = await authFetch(server + '/servers', {
       method: 'GET',
-      headers: { 'Authorization': token },
     });
     return await response.json();
   }
 
   async function sendHeartbeat() {
-    let serviceID = servers[selectedServerIndex].serviceid;
+    let serviceID = filteredServers[selectedServerIndex]?.serviceid;
     if (!server) {
       return Promise.reject(new Error('No server selected'));
     }
 
-    const token = localStorage.getItem('token');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
     try {
-      const response = await fetch(server + '/heartbeat?serviceid=' + serviceID, {
+      const response = await authFetch(server + '/heartbeat?serviceid=' + serviceID, {
         method: 'POST',
-        headers: { 'Authorization': token },
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -250,7 +271,7 @@ export default function Home() {
 
   // handle connect/disconnect
   const handleClick = async () => {
-    const selectedServer = servers[selectedServerIndex];
+    const selectedServer = filteredServers[selectedServerIndex];
 
     if (!selectedServer) {
       messageRef.current?.addMessage('No server selected', 'error');
@@ -263,15 +284,15 @@ export default function Home() {
     }
 
     if (!connected) {
-      // console.log('Connecting to server:', selectedServer.ip);
-
       try {
         const data = await connectToNode();
+
+        console.log('Connection data:', data);
 
         await invoke('launch_xray', {
           uuid: data.uuid,
           pubkey: data.pubkey,
-          server: ipv6checked && selectedServer.ipv6 ? selectedServer.ipv6 : selectedServer.ip,
+          server: ipv6checked && selectedServer.ipv6 && selectedServer.ipv6.includes(':') ? selectedServer.ipv6 : selectedServer.ip,
           port: data.port,
         }).then((xraypid) => {
           pid = xraypid;
@@ -280,7 +301,6 @@ export default function Home() {
         messageRef.current?.addMessage(`Connected to ${selectedServer.description || selectedServer.ip}`, 'success');
         setConnected(!connected);
       } catch (error) {
-        // console.error('Error connecting to node:', error);
         messageRef.current?.addMessage(`Error connecting to ${selectedServer.description || selectedServer.ip}: ${error.message}`, 'error');
         return;
       }
@@ -307,12 +327,13 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center h-screen gap-4 relative bg-white/20 pt-8 dark:text-gray-700">
-      <UserInfoCard user={user} settings={settings} setSettings={setSettings} messageRef={messageRef} />
+      <UserInfoCard user={user} settings={settings} setSettings={setSettings} messageRef={messageRef} servers={servers} />
       <NodeSelector
-        servers={servers}
+        servers={filteredServers}
         selectedServerIndex={selectedServerIndex}
         setSelectedServerIndex={setSelectedServerIndex}
         connected={connected}
+        connectToNode={connectToNode}
       />
       <NetworkMonitor isConnected={connected} />
       <div className="flex items-center gap-4">
@@ -326,15 +347,10 @@ export default function Home() {
         />
       </div>
 
-      <button
-        className={`w-36 h-16 rounded-3xl text-white font-semibold transition-all duration-300 
-          ${connected ? 'bg-red-400 hover:bg-red-500' : 'bg-blue-400 hover:bg-blue-500'}
-          hover:scale-103 shadow-lg flex items-center justify-center`
-        }
+      <WifiToggleButton
+        connected={connected}
         onClick={handleClick}
-      >
-        {connected ? i18next.t('Disconnect') : i18next.t('Connect')}
-      </button>
+      />
 
       <div className="fixed bottom-0 left-0 w-full flex justify-center z-50 ">
         <div className="bottom-bar flex justify-between w-full max-w-md p-1 shadow-md bg-blue-50 dark:bg-[#d1d5dc] opacity-80">

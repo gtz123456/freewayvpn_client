@@ -8,7 +8,7 @@
   "Version not supported": "Version not supported. Please update to the latest version.",
   "Error checking version": "Error checking version. Please try again.",
   "Login failed": "Login failed. Please try again.",
-  "Registration successful": "Registration successful! Please log in.",
+  "Registration successful": "Verification email sent! Please verify your email before logging in.",
   "Registration failed": "Registration failed. Please try again.",
 
   "User data invalid": "User data is invalid. Please log in again.",
@@ -21,6 +21,11 @@
   "IPV6 explanation": "IPv6 may significantly improve the speed if your ISP's IPv4 network is congested. For 4G/5G connections, IPv6 is usually enabled by default.",
   "Usage": "Usage",
 
+  "100GB/month": "100GB/month",
+  "5 Devices allowed": "5 Devices allowed",
+  "Access to premium servers": "Access to premium servers",
+  "Higher speed and lower latency": "Higher speed and lower latency",
+
   "Free plan": "Free plan",
   "Select node:": "Select node:",
   "Free": "Free",
@@ -28,12 +33,44 @@
   "Speed": "Speed",
   "Download": "Download",
   "Upload": "Upload",
-  "Transfer": "Transfer",
+  "Connect to see live speed": "Connect to see live speed",
 
   "Connect": "Connect",
   "Disconnect": "Disconnect",
 
   "ADGuard": "ADGuard",
   "Load Balancing": "Load Balancing",
-  "Filter": "Filter"
+  "Filter": "Filter",
+
+  "$3/month": "$3/month",
+  "Balance": "Balance",
+  "expires": "expires",
+
+  "Recharge": "Recharge",
+  "Enter amount (USD)": "Enter amount (USD)",
+  "Gift card - STEAM": "Gift card - STEAM",
+  "Processing...": "Processing...",
+  "Proceed to Pay": "Proceed to Pay",
+  "Scan or click the QR code": "Scan or click the QR code to copy the payment address",
+  "Fetching payment link...": "Fetching payment link...",
+  "Link copied to clipboard": "Link copied to clipboard",
+  "Referral Code (Optional)": "Referral Code (Optional)",
+  "Invite Code": "Invite Code",
+  "Copied to clipboard": "Copied to clipboard",
+  "Copy code": "Copy code",
+
+  "Speed Test": "Speed Test",
+  "VPN on – test uses proxy port": "VPN on – test uses proxy port",
+  "Test speed via": "Test speed via",
+  "Select a server first": "Select a server first",
+  "Starting xray…": "Starting xray…",
+  "Downloading via port": "Downloading via port",
+  "Final speed": "Final speed",
+  "Test failed": "Test failed",
+  "Connecting…": "Connecting…",
+  "Testing…": "Testing…",
+  "Retest": "Retest",
+  "Start Test": "Start Test",
+  "No server selected": "No server selected",
+  "Test Speed": "Test Speed"
 }

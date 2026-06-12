@@ -16,13 +16,14 @@ export default function Home() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [isLogin, setIsLogin] = useState(true); // Controls whether it's login or register mode
 
   const messageRef = useRef();
 
   const router = useRouter();
 
-  const server = 'http://146.235.210.34';
+  const server = 'http://170.9.29.245';
 
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -31,7 +32,7 @@ export default function Home() {
 
   const handleCheckVersion = () => {
     // Check the version of the app
-    fetch(`${server}:8001/version?client-version=0.1.0`, {
+    fetch(`${server}/version?client-version=0.1.0`, {
       method: 'GET',
       headers: {
       'Content-Type': 'application/json',
@@ -54,6 +55,18 @@ export default function Home() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      messageRef.current?.addMessage(i18next.t('Invalid email format'), 'error');
+      return;
+    }
+
+    if (password.length < 6) {
+      messageRef.current?.addMessage(i18next.t('Password must be at least 6 characters'), 'error');
+      return;
+    }
+
     if (isLogin) {
       handleLogin();
     } else {
@@ -63,7 +76,7 @@ export default function Home() {
 
   function handleLogin() {
     // Send a POST request to the server, and get the jwt token in the response body
-    let loginURL = `${server}:8001/login`;
+    let loginURL = `${server}/login`;
     fetch(loginURL, {
       method: 'POST',
       headers: {
@@ -72,47 +85,46 @@ export default function Home() {
       body: JSON.stringify({ "Email": email, "Password": password }),
     })
       .then((res) => res.json())
-      .then((data) => {
-        const token = data.token;
-        
-        if (token) {
-          console.log('JWT Token:', token);
-
-          localStorage.setItem('token', token);
-
-          // Redirect to the main page
+      .then((data) => {        
+        if (data.token) {
+          console.log('JWT Token:', data.token);
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('auth_email', email);
+          localStorage.setItem('auth_password', password);
           router.push('/main');
         } else {
-          console.error('No token found in response');
+          console.error('Login failed:', data.error || 'No token found');
+          messageRef.current?.addMessage(i18next.t('Login failed') + ' ' + (data.error || 'No token found'), 'error');
         }
       })
       .catch((err) => {
         console.error('Error during login:', err);
-        messageRef.current?.addMessage(i18next.t('Login failed'), 'error');
+        messageRef.current?.addMessage(i18next.t('Login failed') + ' ' + err.message, 'error');
       });
   }
 
   function handleRegister() {
-    let registerURL = `${server}:8001/signup`;
+    let registerURL = `${server}/signup`;
     fetch(registerURL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ "Email": email, "Password": password }),
+      body: JSON.stringify({ "Email": email, "Password": password, "referral_code": referralCode }),
     })
-      .then(async (res) => {
-        const text = await res.text();
-        if (!res.ok) {
-          throw new Error(text || 'Registration failed');
+      .then((res) => {
+        if (res.ok) {
+          messageRef.current?.addMessage(i18next.t('Registration successful'), 'success');
+          setIsLogin(true); // Switch to login mode after successful registration
+        } else {
+          return res.json().then((data) => {
+            throw new Error(data.error || 'Registration failed');
+          });
         }
-        console.log('Registered with:', { "Email": email, "Password": password });
-        messageRef.current?.addMessage(i18next.t('Registration successful'), 'success');
-        setIsLogin(true); // Switch to login mode after successful registration
       })
       .catch((err) => {
-        console.error('Error:', err);
-        messageRef.current?.addMessage(i18next.t('Registration failed'), 'error');
+        console.error('Error during registration:', err);
+        messageRef.current?.addMessage(i18next.t('Registration failed') + ' ' + err.message, 'error');
       });
   }
 
@@ -161,6 +173,17 @@ export default function Home() {
               className="mt-1 block w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-w-[275px]"
             />
           </div>
+          {!isLogin && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">{i18next.t('Referral Code (Optional)')}</label>
+              <input
+                type="text"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-w-[275px]"
+              />
+            </div>
+          )}
           <button
             type="submit"
             className="w-full py-2 px-4 bg-blue-400 text-white rounded-md hover:bg-blue-500 transition-colors disabled:opacity-50 max-w-[275px]"

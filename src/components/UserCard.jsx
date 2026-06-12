@@ -19,57 +19,30 @@ const ToggleSwitch = ({ label, isEnabled, onToggle }) => (
   </div>
 );
 
-// Helper component for the filter checkbox
-const FilterCheckbox = ({ label, isChecked, onToggle }) => (
-    <label className="flex items-center space-x-3 py-1.5 cursor-pointer">
-        <input 
-            type="checkbox" 
-            checked={isChecked} 
-            onChange={onToggle}
-            className="h-5 w-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-        />
-        <span className="text-gray-800">{label}</span>
-    </label>
-);
 
-const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
+const UserInfoCard = ({ user, settings, setSettings, messageRef, servers = [] }) => {
   const { lang, setLanguage } = useContext(I18nContext);
+
+  // null = all closed, 'subscribe' = subscribe open, 'settings' = settings open
+  const [activeMenu, setActiveMenu] = useState(null);
+
+  const router = useRouter();
+  const menuRef = useRef(null);
 
   const handleChange = (e) => {
     const newLang = e.target.value;
     setLanguage(newLang);
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        menuRef.current && 
-        !menuRef.current.contains(event.target)
-      ) {
-        setIsSettingsOpen(false);
-        setIsSubscribeOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-
-  // State for dropdown visibility
-  const [isSubscribeOpen, setIsSubscribeOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  const router = useRouter();
-
-  // Ref to detect clicks outside the menu
-  const menuRef = useRef(null);
+  const toggleMenu = (menuName) => {
+    setActiveMenu(prev => prev === menuName ? null : menuName);
+  };
 
   // Close menu if clicked outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsSettingsOpen(false);
+        setActiveMenu(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -83,6 +56,8 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
         [settingName]: !prev[settingName]
     }));
   };
+
+  const availableTags = Array.from(new Set(servers.flatMap(s => s.tags || []))).sort();
 
   return (
     <div className="w-[90%] max-w-xl mx-auto flex items-center gap-3 p-2 pl-3 rounded-xl bg-white/60 shadow-md">
@@ -107,18 +82,41 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
 
       {/* Info */}
       <div className="flex flex-col">
-        <div className="text-sm text-gray-600">{user.email ? user.email : '?@freewayvpn.top'}</div>
-        <div className="text-xs text-gray-400 dark:text-gray-600">{user.plan ? i18next.t(user.plan) : i18next.t('Free plan')}</div>
+        <div className="flex justify-between items-center space-x-2 text-sm">
+          <div className="text-sm text-gray-600">{user.email ? user.email : '?@freewayvpn.top'} </div>
+        </div>
+
+        <div className="text-xs text-gray-400 dark:text-gray-600">
+          <div>{user.plan ? i18next.t(user.plan) : i18next.t('Free plan')}</div>
+          {user.plan_end && <div>{i18next.t('Expires')}: {user.plan_end.split('T')[0]}</div>}
+          {user.referral_code && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <span>{i18next.t('Invite Code')}: <span className="font-mono text-blue-500 font-medium">{user.referral_code}</span></span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(user.referral_code);
+                  messageRef.current?.addMessage(i18next.t('Copied to clipboard'), 'success');
+                }}
+                className="text-gray-400 hover:text-blue-500 ml-1 transition-colors"
+                title={i18next.t('Copy code')}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Settings button and dropdown menu container TODO: extract as separate settings component */}
+      {/* Settings button and dropdown menu container */}
       <div ref={menuRef} className="ml-auto relative">
         {/* Subscription Button */}
         <button
-          onClick={() => setIsSubscribeOpen(!isSubscribeOpen)}
+          onClick={() => toggleMenu('subscribe')}
           className="p-2 rounded-full hover:bg-gray-200 transition-colors"
           aria-haspopup="true"
-          aria-expanded={isSubscribeOpen}
+          aria-expanded={activeMenu === 'subscribe'}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -145,10 +143,10 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
 
         {/* Settings Button */}
         <button
-          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+          onClick={() => toggleMenu('settings')}
           className="p-2 rounded-full hover:bg-gray-200 transition-colors"
           aria-haspopup="true"
-          aria-expanded={isSettingsOpen}
+          aria-expanded={activeMenu === 'settings'}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -157,10 +155,10 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
         </button>
 
         {/* Subscription Menu */}
-        {isSubscribeOpen && <Subscribe messageRef={messageRef} />}
+        {activeMenu === 'subscribe' && <Subscribe messageRef={messageRef} user={user} />}
 
         {/* Settings Menu */}
-        {isSettingsOpen && (
+        {activeMenu === 'settings' && (
           <div className="absolute top-full right-0 mt-2 w-56 p-4 bg-white rounded-xl shadow-lg z-10 border border-gray-100">
             <div className="flex flex-col">
                 <select value={lang} onChange={handleChange} className="p-2 rounded border">
@@ -173,11 +171,30 @@ const UserInfoCard = ({ user, settings, setSettings, messageRef }) => {
                 <div className="border-t border-gray-200 my-3"></div>
 
                 <h3 className="text-sm text-gray-500 mb-2">{i18next.t('Filter')}:</h3>
-                <FilterCheckbox label="NetFlix" isChecked={settings.filterNetflix} onToggle={() => handleSettingChange('filterNetflix')} />
-                <FilterCheckbox label="ChatGPT" isChecked={settings.filterChatGPT} onToggle={() => handleSettingChange('filterChatGPT')} />
+                <div className="max-h-40 overflow-y-auto border rounded p-2 mb-2 flex flex-col gap-1">
+                  {availableTags.map(tag => (
+                    <label key={tag} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.filterTags?.includes(tag) || false}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSettings(prev => {
+                            const prevTags = prev.filterTags || [];
+                            const newTags = checked ? [...prevTags, tag] : prevTags.filter(t => t !== tag);
+                            return { ...prev, filterTags: newTags };
+                          });
+                        }}
+                        className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">{tag}</span>
+                    </label>
+                  ))}
+                  {availableTags.length === 0 && <span className="text-xs text-gray-400">No tags available</span>}
+                </div>
                 <button
                   className="mt-2 px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors"
-                  onClick={() => { localStorage.removeItem('token'); router.push('/'); }}
+                  onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('auth_email'); localStorage.removeItem('auth_password'); router.push('/'); }}
                 >
                   Log off
                 </button>
